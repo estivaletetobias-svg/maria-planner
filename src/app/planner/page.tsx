@@ -93,51 +93,56 @@ export default function PlannerPage() {
   }, [fetchDayData]);
 
   const handleToggleTask = async (task: Task) => {
-    const isFirstCompletion = !task.completed;
     const updatedTask = { ...task, completed: !task.completed };
     
-    // Optimistic UI
-    setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+    // Optimistic UI update with reward check
+    setTasks(prev => {
+      const newTasks = prev.map(t => t.id === task.id ? updatedTask : t);
+      const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
+      
+      if (allDone && capy) {
+        const todayString = getLocalDateString(new Date());
+        const selectedIsToday = getLocalDateString(selectedDate) === todayString;
 
-    if (isFirstCompletion && capy) {
-      setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
-      setShowReward(true);
-      setTimeout(() => setShowReward(false), 2000);
-      await updateCapyState({ oranges: capy.oranges + 1 });
+        if (selectedIsToday && capy.lastActiveDate !== todayString) {
+          handleDayCompletion(todayString);
+        }
+      }
+      return newTasks;
+    });
+
+    // Reward 1 orange if completing
+    if (!task.completed && capy) {
+       setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
+       setShowReward(true);
+       setTimeout(() => setShowReward(false), 2000);
+       await updateCapyState({ oranges: capy.oranges + 1 });
     }
 
     await saveTask(updatedTask);
+  };
 
-    // Sticker and Streak Reward logic
-    const newTasks = tasks.map(t => t.id === task.id ? updatedTask : t);
-    const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
-
-    if (allDone && capy) {
-      const todayString = getLocalDateString(new Date());
-      const selectedIsToday = getLocalDateString(selectedDate) === todayString;
-
-      if (selectedIsToday && capy.lastActiveDate !== todayString) {
-        // Unlock random sticker
-        const available = ALL_STICKERS.filter(s => !capy.stickers.includes(s.id));
-        const sticker = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null;
-        
-        let newStreak = capy.streak;
-        const yesterdayString = getLocalDateString(new Date(Date.now() - 86400000));
-        
-        if (capy.lastActiveDate === yesterdayString) {
-          newStreak += 1;
-        } else {
-          newStreak = 1;
-        }
-
-        const newStickers = sticker ? [...capy.stickers, sticker.id] : capy.stickers;
-        
-        setCapy({ ...capy, streak: newStreak, lastActiveDate: todayString, stickers: newStickers });
-        if (sticker) setUnlockedSticker(sticker);
-        
-        await updateCapyState({ streak: newStreak, lastActiveDate: todayString, stickers: newStickers });
-      }
+  const handleDayCompletion = async (todayString: string) => {
+    if (!capy) return;
+    
+    const available = ALL_STICKERS.filter(s => !capy.stickers.includes(s.id));
+    const sticker = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null;
+    
+    let newStreak = capy.streak;
+    const yesterdayString = getLocalDateString(new Date(Date.now() - 86400000));
+    
+    if (capy.lastActiveDate === yesterdayString) {
+      newStreak += 1;
+    } else {
+      newStreak = 1;
     }
+
+    const newStickers = sticker ? [...capy.stickers, sticker.id] : capy.stickers;
+    
+    setCapy(prev => prev ? ({ ...prev, streak: newStreak, lastActiveDate: todayString, stickers: newStickers }) : null);
+    if (sticker) setUnlockedSticker(sticker);
+    
+    await updateCapyState({ streak: newStreak, lastActiveDate: todayString, stickers: newStickers });
   };
 
   const handleAddTask = async () => {
@@ -231,7 +236,7 @@ export default function PlannerPage() {
         </div>
       </header>
 
-      {/* Sidebar - Desktop Only */}
+      {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex w-72 bg-white border-r-4 border-foreground p-6 flex flex-col gap-6 shrink-0 transition-all overflow-y-auto">
         <div className="flex justify-between items-center">
           <Link href="/">
@@ -261,7 +266,6 @@ export default function PlannerPage() {
           </div>
         </div>
 
-        {/* Capy Pet */}
         <div className="flex flex-col items-center bg-pastel-orange/30 p-4 rounded-3xl border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] relative">
           <div className="relative w-24 h-24">
             <Image src="/capy.png" alt="Capy Pet" fill className="object-contain" />
@@ -287,7 +291,7 @@ export default function PlannerPage() {
       <section className="flex-1 p-4 lg:p-8 flex flex-col gap-6 bg-white overflow-y-auto">
         <header className="hidden lg:flex justify-between items-center bg-white/80 backdrop-blur pb-6 border-b-4 border-pastel-pink/20">
           <div>
-            <h1 className="font-chewy text-6xl text-foreground">Missões da Maria</h1>
+            <h1 className="font-chewy text-6xl text-foreground text-left">Missões da Maria</h1>
             <p className="font-pacifico text-3xl text-pastel-pink mt-2">
               {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
@@ -318,7 +322,7 @@ export default function PlannerPage() {
            </div>
         </div>
 
-        <div className="flex gap-4 max-w-4xl">
+        <div className="flex flex-col sm:flex-row gap-4 max-w-4xl">
           <input
             type="text"
             value={newTaskText}
@@ -331,11 +335,11 @@ export default function PlannerPage() {
             type="time"
             value={newTaskTime}
             onChange={(e) => setNewTaskTime(e.target.value)}
-            className="w-40 p-5 rounded-3xl border-4 border-foreground font-chewy text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]"
+            className="w-full sm:w-40 p-5 rounded-3xl border-4 border-foreground font-chewy text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]"
           />
           <button
             onClick={handleAddTask}
-            className="px-8 bg-pastel-green rounded-3xl border-4 border-foreground font-chewy text-3xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 active:translate-y-2 transition-all"
+            className="px-8 bg-pastel-green rounded-3xl border-4 border-foreground font-chewy text-3xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 active:translate-y-2 transition-all p-4"
           >
             <Plus size={32} />
           </button>
@@ -379,7 +383,7 @@ export default function PlannerPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col">
-                    <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40" : "text-foreground"}`}>
+                    <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40 text-left" : "text-foreground text-left"}`}>
                       {task.text}
                     </p>
                     {task.time && (
@@ -394,7 +398,7 @@ export default function PlannerPage() {
 
               {task.completed && <span className="text-4xl animate-bounce">🍊</span>}
 
-              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-4 right-4 flex gap-2">
                 <button
                   onClick={() => { setEditingTask(task.id); setEditText(task.text); setEditTime(task.time || ""); }}
                   className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-colors"
