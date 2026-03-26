@@ -38,9 +38,9 @@ export default function PlannerPage() {
   };
 
   return (
-    <main className="h-screen bg-pastel-pink/20 flex overflow-hidden">
+    <main className="min-h-screen lg:h-screen bg-pastel-pink/20 flex flex-col lg:flex-row overflow-x-hidden overflow-y-auto lg:overflow-hidden">
       {/* Sidebar - Capy & Tasks */}
-      <aside className="w-80 bg-white border-r-4 border-foreground p-6 flex flex-col gap-6 overflow-y-auto">
+      <aside className="w-full lg:w-80 bg-white border-b-4 lg:border-b-0 lg:border-r-4 border-foreground p-6 flex flex-col gap-6 shrink-0">
         <Link href="/">
           <button className="p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-all cursor-pointer">
             <ArrowLeft size={24} />
@@ -106,8 +106,8 @@ export default function PlannerPage() {
       </aside>
 
       {/* Main Content - Drawing Board */}
-      <section className="flex-1 p-6 flex flex-col gap-6 relative">
-        <header className="flex justify-between items-center">
+      <section className="flex-1 p-4 lg:p-6 flex flex-col gap-6 relative min-h-[700px] lg:min-h-0">
+        <header className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="font-chewy text-4xl text-foreground">Diário da Maria</h1>
           <div className="bg-white px-6 py-2 rounded-full border-2 border-foreground font-pacifico text-xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]">
             {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}

@@ -1,0 +1,17 @@
+{
+  "name": "CapyPlanner",
+  "short_name": "Maria",
+  "description": "Maria's Interactive Planner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#F3E5F5",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

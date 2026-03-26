@@ -22,6 +22,11 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "CapyPlanner - Maria's Private Space",
   description: "A magical interactive planner with Maria and her family.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
