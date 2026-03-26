@@ -8,26 +8,8 @@ import Image from "next/image";
 import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles, X, Calendar as CalendarIcon, Clock, Bell, BellOff, RefreshCw } from "lucide-react";
 import { subscribeToNotifications, checkNotificationPermission } from "@/lib/notifications";
 import Link from "next/link";
-import { getTasks, saveTask, deleteTask, getCapyState, updateCapyState, Task, CapyState } from "./actions";
-
-const ALL_STICKERS = [
-  { id: 'star', emoji: '⭐', name: 'Estrela Brilhante' },
-  { id: 'heart', emoji: '❤️', name: 'Super Coração' },
-  { id: 'rainbow', emoji: '🌈', name: 'Arco-Íris Mágico' },
-  { id: 'butterfly', emoji: '🦋', name: 'Borboleta Azul' },
-  { id: 'moon', emoji: '🌙', name: 'Lua de Cristal' },
-  { id: 'sun', emoji: '☀️', name: 'Sol da Alegria' },
-  { id: 'crown', emoji: '👑', name: 'Coroa Real' },
-  { id: 'diamond', emoji: '💎', name: 'Diamante Raro' },
-  { id: 'lollipop', emoji: '🍭', name: 'Pirulito Doce' },
-  { id: 'cupcake', emoji: '🧁', name: 'Cupcake de Fada' },
-  { id: 'cat', emoji: '🐱', name: 'Gatinho Fofo' },
-  { id: 'dog', emoji: '🐶', name: 'Cachorrinho Amigo' },
-  { id: 'flower', emoji: '🌸', name: 'Flor de Cerejeira' },
-  { id: 'cloud', emoji: '☁️', name: 'Nuvem de Algodão' },
-  { id: 'music', emoji: '🎵', name: 'Nota Musical' },
-  { id: 'balloon', emoji: '🎈', name: 'Balão de Festa' },
-];
+import { getTasks, saveTask, deleteTask, getCapyState, updateCapyState } from "./actions";
+import { Task, CapyState, CAPY_ITEMS, ALL_STICKERS } from "@/lib/capy-config";
 
 export default function PlannerPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -189,13 +171,7 @@ export default function PlannerPage() {
 
   const currentLevel = capy ? Math.floor(capy.oranges / 3) + 1 : 1;
 
-  const items = [
-    { id: "hat", name: "Laço Rosa", emoji: "🎀", cost: 2, position: "top" },
-    { id: "glasses", name: "Óculos Cool", emoji: "😎", cost: 5, position: "eyes" },
-    { id: "crown", name: "Coroa Real", emoji: "👑", cost: 10, position: "top" },
-    { id: "flower", name: "Florzinha", emoji: "🌸", cost: 1, position: "side" },
-    { id: "star", name: "Estrela", emoji: "⭐", cost: 3, position: "side" },
-  ];
+  const items = CAPY_ITEMS;
 
   const handleEquipItem = async (itemId: string) => {
     if (!capy) return;
