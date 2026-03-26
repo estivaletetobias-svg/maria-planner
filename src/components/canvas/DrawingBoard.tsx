@@ -52,34 +52,32 @@ export default function DrawingBoard({ date }: { date: Date }) {
     
     if (stroke.type === "eraser") {
       ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = stroke.width * 5;
+      ctx.lineWidth = stroke.width * 10; // Bigger eraser
+      ctx.globalAlpha = 1.0;
+      ctx.shadowBlur = 0;
     } else {
       ctx.globalCompositeOperation = "source-over";
+      ctx.lineWidth = stroke.width;
       if (stroke.type === "highlighter") {
         ctx.globalAlpha = 0.4;
-        ctx.lineWidth = stroke.width * 2;
       } else {
         ctx.globalAlpha = 1.0;
-        ctx.lineWidth = stroke.width;
+      }
+      
+      if (stroke.type === "glitter") {
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = stroke.color;
       }
     }
 
     ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
 
     for (let i = 1; i < stroke.points.length; i++) {
-      const p = stroke.points[i];
-      // Use pressure for variable width (Apple Pencil focus)
-      ctx.lineWidth = stroke.width * (p.pressure || 1);
-      
-      if (stroke.type === "glitter") {
-        // Simple glitter effect
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = stroke.color;
-      } else {
-        ctx.shadowBlur = 0;
-      }
-
-      ctx.lineTo(p.x, p.y);
+        const p = stroke.points[i];
+        if (stroke.type !== "eraser") {
+            ctx.lineWidth = stroke.width * (p.pressure || 1);
+        }
+        ctx.lineTo(p.x, p.y);
     }
     ctx.stroke();
   };
@@ -159,14 +157,18 @@ export default function DrawingBoard({ date }: { date: Date }) {
       ctx.strokeStyle = updatedStroke.color;
       if (updatedStroke.type === "eraser") {
         ctx.globalCompositeOperation = "destination-out";
-        ctx.lineWidth = updatedStroke.width * 5;
+        ctx.lineWidth = updatedStroke.width * 10;
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
       } else {
         ctx.globalCompositeOperation = "source-over";
         ctx.lineWidth = updatedStroke.width * (newPoint.pressure || 1);
-        if (updatedStroke.type === "highlighter") ctx.globalAlpha = 0.4;
+        ctx.globalAlpha = updatedStroke.type === "highlighter" ? 0.4 : 1.0;
         if (updatedStroke.type === "glitter") {
           ctx.shadowBlur = 5;
           ctx.shadowColor = updatedStroke.color;
+        } else {
+          ctx.shadowBlur = 0;
         }
       }
       
