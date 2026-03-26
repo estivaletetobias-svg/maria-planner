@@ -14,6 +14,7 @@ export interface Task {
   completed: boolean;
   type: "school" | "home" | "hobby";
   date: string; // ISO string (YYYY-MM-DD)
+  time?: string; // HH:mm format
 }
 
 export interface CapyState {

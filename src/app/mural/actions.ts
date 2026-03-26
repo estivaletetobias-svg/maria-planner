@@ -34,11 +34,26 @@ export async function getNotes(): Promise<Note[]> {
   return notes.filter((n): n is Note => n !== null);
 }
 
+import { sendPushNotification } from "@/app/notifications/actions";
+
 export async function addNote(note: Note) {
   // Save individual note
   await redis.set(`${NOTE_PREFIX}${note.id}`, note);
   // Add ID to the set
   await redis.sadd(MURAL_IDS_KEY, note.id);
+  
+  // Trigger Push
+  try {
+    const typeStr = note.audio ? "um áudio 🎙️" : "um recado 📝";
+    await sendPushNotification(
+      "Recado no Mural! ✨",
+      `${note.author} deixou ${typeStr} para você no mural.`,
+      "/mural"
+    );
+  } catch (err) {
+    console.error("Push Error (Silent):", err);
+  }
+
   revalidatePath("/mural");
 }
 

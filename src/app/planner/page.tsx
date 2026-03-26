@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import DrawingBoard from "@/components/canvas/DrawingBoard";
 import CalendarPicker from "@/components/calendar/CalendarPicker";
 import Image from "next/image";
-import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles, X, Calendar as CalendarIcon } from "lucide-react";
+import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles, X, Calendar as CalendarIcon, Clock, Bell, BellOff } from "lucide-react";
+import { subscribeToNotifications, checkNotificationPermission } from "@/lib/notifications";
 import Link from "next/link";
 import { getTasks, saveTask, deleteTask, getCapyState, updateCapyState, Task, CapyState } from "./actions";
 
@@ -37,11 +38,30 @@ export default function PlannerPage() {
   const [showAlbum, setShowAlbum] = useState(false);
   const [unlockedSticker, setUnlockedSticker] = useState<typeof ALL_STICKERS[0] | null>(null);
   const [newTaskText, setNewTaskText] = useState("");
+  const [newTaskTime, setNewTaskTime] = useState("");
   const [showWardrobe, setShowWardrobe] = useState(false);
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [editTime, setEditTime] = useState("");
   const [showDiary, setShowDiary] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState<string>("default");
+
+  useEffect(() => {
+    checkNotificationPermission().then(setNotificationStatus);
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    if (notificationStatus === 'granted') return;
+    try {
+      await subscribeToNotifications();
+      setNotificationStatus('granted');
+      alert("Uhul! Notificações ativadas com sucesso! ✨");
+    } catch (err) {
+      console.error(err);
+      alert("Ei, Maria! Verifique se seu celular permite as notificações ou se você 'Instalou' o app na tela inicial. 🦦");
+    }
+  };
 
   // Helper to format date consistent for DB (YYYY-MM-DD)
   const getLocalDateString = useCallback((date: Date) => {
@@ -126,6 +146,7 @@ export default function PlannerPage() {
     const newTask: Task = {
       id: Math.random().toString(36).substring(7),
       text: newTaskText,
+      time: newTaskTime || undefined,
       completed: false,
       type: "school",
       date: dateStr
@@ -133,6 +154,7 @@ export default function PlannerPage() {
     
     setTasks(prev => [...prev, newTask]);
     setNewTaskText("");
+    setNewTaskTime("");
     await saveTask(newTask);
   };
 
@@ -173,9 +195,10 @@ export default function PlannerPage() {
 
   const handleUpdateTask = async (task: Task) => {
     if (!editText) return;
-    const updatedTask = { ...task, text: editText };
+    const updatedTask = { ...task, text: editText, time: editTime || undefined };
     setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
     setEditingTask(null);
+    setEditTime("");
     await saveTask(updatedTask);
   };
 
@@ -196,6 +219,12 @@ export default function PlannerPage() {
           {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
         </button>
         <div className="flex gap-2">
+          <button 
+            onClick={handleToggleNotifications} 
+            className={`p-2 rounded-xl border-2 border-foreground ${notificationStatus === 'granted' ? 'bg-pastel-green' : 'bg-white'}`}
+          >
+            {notificationStatus === 'granted' ? <Bell size={20} /> : <BellOff size={20} className="text-gray-400" />}
+          </button>
           <button onClick={() => setShowAlbum(true)} className="p-2 rounded-xl border-2 border-foreground bg-white"><Trophy className="text-pastel-yellow" size={20} /></button>
           <button onClick={() => setShowWardrobe(true)} className="p-2 rounded-xl border-2 border-foreground bg-white"><Sparkles className="text-pastel-orange" size={20} /></button>
           <button onClick={() => setShowDiary(true)} className="p-2 rounded-xl border-2 border-foreground bg-pastel-pink text-white"><Plus size={20} /></button>
@@ -211,6 +240,12 @@ export default function PlannerPage() {
             </button>
           </Link>
           <div className="flex gap-2">
+            <button 
+              onClick={handleToggleNotifications}
+              className={`p-3 rounded-2xl border-2 border-foreground hover:bg-opacity-80 transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)] ${notificationStatus === 'granted' ? 'bg-pastel-green' : 'bg-white'}`}
+            >
+              {notificationStatus === 'granted' ? <Bell size={24} /> : <BellOff size={24} className="text-gray-400" />}
+            </button>
             <button 
               onClick={() => setShowAlbum(true)}
               className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
@@ -292,6 +327,12 @@ export default function PlannerPage() {
             className="flex-1 p-5 rounded-3xl border-4 border-foreground font-outfit text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] focus:ring-4 ring-pastel-pink/20"
             onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
           />
+          <input
+            type="time"
+            value={newTaskTime}
+            onChange={(e) => setNewTaskTime(e.target.value)}
+            className="w-40 p-5 rounded-3xl border-4 border-foreground font-chewy text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]"
+          />
           <button
             onClick={handleAddTask}
             className="px-8 bg-pastel-green rounded-3xl border-4 border-foreground font-chewy text-3xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 active:translate-y-2 transition-all"
@@ -320,20 +361,34 @@ export default function PlannerPage() {
 
               <div className="flex-1">
                 {editingTask === task.id ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <input
                       autoFocus
-                      className="w-full bg-transparent font-outfit text-2xl outline-none border-b-2 border-foreground"
+                      className="flex-1 min-w-[200px] bg-transparent font-outfit text-2xl outline-none border-b-2 border-foreground"
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleUpdateTask(task)}
                     />
-                    <button onClick={() => handleUpdateTask(task)} className="bg-pastel-green p-2 rounded-lg border-2 border-foreground">OK</button>
+                    <input
+                      type="time"
+                      className="w-32 bg-transparent font-chewy text-xl outline-none border-b-2 border-foreground"
+                      value={editTime}
+                      onChange={(e) => setEditTime(e.target.value)}
+                    />
+                    <button onClick={() => handleUpdateTask(task)} className="bg-pastel-green px-4 py-2 rounded-xl border-2 border-foreground shadow-[2px_2px_0] active:translate-y-0.5">OK</button>
                   </div>
                 ) : (
-                  <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40" : "text-foreground"}`}>
-                    {task.text}
-                  </p>
+                  <div className="flex flex-col">
+                    <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40" : "text-foreground"}`}>
+                      {task.text}
+                    </p>
+                    {task.time && (
+                      <div className="flex items-center gap-1 text-pastel-pink font-chewy text-lg mt-1">
+                        <Clock size={16} />
+                        {task.time}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -341,7 +396,7 @@ export default function PlannerPage() {
 
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => { setEditingTask(task.id); setEditText(task.text); }}
+                  onClick={() => { setEditingTask(task.id); setEditText(task.text); setEditTime(task.time || ""); }}
                   className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-colors"
                 >
                   <Sparkles size={20} />
