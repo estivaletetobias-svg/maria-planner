@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Pin } from "lucide-react";
+import { Pin, Trash2 } from "lucide-react";
 
 interface PostItProps {
   id: string;
@@ -11,9 +11,10 @@ interface PostItProps {
   x: number;
   y: number;
   rotation: number;
+  onDelete: (id: string) => void;
 }
 
-export default function PostIt({ content, color, author, x, y, rotation }: PostItProps) {
+export default function PostIt({ id, content, color, author, x, y, rotation, onDelete }: PostItProps) {
   return (
     <motion.div
       drag
@@ -26,6 +27,13 @@ export default function PostIt({ content, color, author, x, y, rotation }: PostI
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-foreground/30">
         <Pin size={24} fill="currentColor" />
       </div>
+
+      <button
+        onClick={() => onDelete(id)}
+        className="absolute top-2 right-2 text-foreground/20 hover:text-red-400 transition-colors cursor-pointer"
+      >
+        <Trash2 size={20} />
+      </button>
       
       <p className="font-pacifico text-2xl text-center leading-relaxed text-foreground">
         {content}

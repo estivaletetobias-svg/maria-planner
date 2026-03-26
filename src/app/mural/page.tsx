@@ -50,15 +50,23 @@ export default function MuralPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [newAuthor, setNewAuthor] = useState("Pai");
+  const [newColor, setNewColor] = useState("var(--pastel-pink)");
+
+  const colors = [
+    { name: "Pink", value: "var(--pastel-pink)" },
+    { name: "Yellow", value: "var(--pastel-yellow)" },
+    { name: "Green", value: "var(--pastel-green)" },
+    { name: "Blue", value: "var(--pastel-blue)" },
+    { name: "Orange", value: "var(--pastel-orange)" },
+  ];
 
   const addNote = () => {
     if (!newContent) return;
-    const colors = ["var(--pastel-blue)", "var(--pastel-pink)", "var(--pastel-yellow)", "var(--pastel-green)", "var(--pastel-orange)"];
     const newNote: Note = {
       id: Math.random().toString(),
       content: newContent,
       author: newAuthor,
-      color: colors[Math.floor(Math.random() * colors.length)],
+      color: newColor,
       x: Math.random() * 500 + 50,
       y: Math.random() * 300 + 100,
       rotation: Math.random() * 20 - 10,
@@ -66,6 +74,10 @@ export default function MuralPage() {
     setNotes([...notes, newNote]);
     setNewContent("");
     setShowAdd(false);
+  };
+
+  const deleteNote = (id: string) => {
+    setNotes(notes.filter(n => n.id !== id));
   };
 
   return (
@@ -92,10 +104,9 @@ export default function MuralPage() {
         </button>
       </header>
 
-      {/* Mural Area */}
       <div className="flex-1 relative cursor-default">
         {notes.map((note) => (
-          <PostIt key={note.id} {...note} />
+          <PostIt key={note.id} {...note} onDelete={deleteNote} />
         ))}
       </div>
 
@@ -143,9 +154,26 @@ export default function MuralPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block font-chewy text-xl mb-2">Cor do papel:</label>
+                  <div className="flex gap-3">
+                    {colors.map((c) => (
+                      <button
+                        key={c.name}
+                        onClick={() => setNewColor(c.value)}
+                        className={`w-10 h-10 rounded-full border-2 border-foreground transition-all ${
+                          newColor === c.value ? "ring-4 ring-black scale-110" : ""
+                        }`}
+                        style={{ backgroundColor: c.value }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   onClick={addNote}
-                  className="w-full py-4 bg-pastel-pink rounded-xl border-4 border-foreground font-chewy text-2xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 transition-all"
+                  className="w-full py-4 rounded-xl border-4 border-foreground font-chewy text-2xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 transition-all"
+                  style={{ backgroundColor: newColor }}
                 >
                   Colocar no Mural 🍊
                 </button>

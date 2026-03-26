@@ -27,48 +27,6 @@ export default function DrawingBoard({ date }: { date: Date }) {
 
   const storageKey = `drawing-${date.toISOString().split('T')[0]}`;
 
-  // Load from storage
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setStrokes(parsed);
-    } else {
-      setStrokes([]);
-    }
-  }, [storageKey]);
-
-  // Save to storage
-  useEffect(() => {
-    if (strokes.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(strokes));
-    }
-  }, [strokes, storageKey]);
-
-  useEffect(() => {
-    redraw();
-  }, [strokes]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Resize canvas to parent
-    const resize = () => {
-      const parent = canvas.parentElement;
-      if (parent) {
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
-        redraw();
-      }
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-
   const redraw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -125,6 +83,48 @@ export default function DrawingBoard({ date }: { date: Date }) {
     }
     ctx.stroke();
   };
+
+  // Load from storage
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setStrokes(parsed);
+    } else {
+      setStrokes([]);
+    }
+  }, [storageKey]);
+
+  // Save to storage
+  useEffect(() => {
+    if (strokes.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(strokes));
+    }
+  }, [strokes, storageKey]);
+
+  useEffect(() => {
+    redraw();
+  }, [strokes]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Resize canvas to parent
+    const resize = () => {
+      const parent = canvas.parentElement;
+      if (parent) {
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        redraw();
+      }
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
 
   const startDrawing = (e: React.PointerEvent) => {
     setIsDrawing(true);
@@ -208,7 +208,7 @@ export default function DrawingBoard({ date }: { date: Date }) {
           ].map((tool) => (
             <button
               key={tool.id}
-              onClick={() => setPenType(tool.id as any)}
+              onClick={() => setPenType(tool.id as "gel" | "glitter" | "highlighter" | "pencil" | "eraser")}
               className={`p-2 rounded-xl border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(62,39,35,1)] active:translate-y-0.5 transition-all ${
                 penType === tool.id ? "bg-pastel-pink translate-y-0.5" : "bg-white"
               }`}
