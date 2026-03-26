@@ -27,12 +27,26 @@ export default function MuralPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      
+      // Detecção de tipo suportado (iOS vs Android/Desktop)
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") 
+        ? "audio/webm" 
+        : "audio/mp4";
+      
+      const recorder = new MediaRecorder(stream, { mimeType });
       const chunks: Blob[] = [];
 
       recorder.ondataavailable = (e) => chunks.push(e.data);
       recorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
+        const blob = new Blob(chunks, { type: mimeType });
+        
+        // Verificar tamanho (Limite do Redis é 1MB, vamos usar 500KB para segurança)
+        if (blob.size > 500000) {
+          alert("Opa! O áudio ficou muito comprido. Tente gravar um recado mais curtinho! 🍊");
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
@@ -46,6 +60,7 @@ export default function MuralPage() {
       setIsRecording(true);
     } catch (err) {
       console.error("Erro ao acessar microfone:", err);
+      alert("Não consegui acessar o microfone. Verifique as permissões! 🎙️");
     }
   };
 
