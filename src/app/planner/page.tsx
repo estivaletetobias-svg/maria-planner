@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import DrawingBoard from "@/components/canvas/DrawingBoard";
+import CalendarPicker from "@/components/calendar/CalendarPicker";
 import Image from "next/image";
 import { CheckCircle2, Circle, ArrowLeft, Trophy } from "lucide-react";
 import Link from "next/link";
@@ -74,6 +75,9 @@ export default function PlannerPage() {
             ))}
           </div>
         </div>
+
+        {/* Calendar Picker */}
+        <CalendarPicker />
 
         {/* Task List */}
         <div className="flex-1 flex flex-col">
