@@ -1,65 +1,137 @@
+"use client";
+
+import { motion } from "framer-motion";
 import Image from "next/image";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Lock, Users, ArrowRight } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
+  const [showPin, setShowPin] = useState(false);
+  const [pin, setPin] = useState("");
+
+  const handlePin = (digit: string) => {
+    if (pin.length < 4) setPin(pin + digit);
+  };
+
+  const handleLogin = () => {
+    if (pin === "1234") {
+      router.push("/planner");
+    } else {
+      setPin("");
+      alert("PIN incorreto! Dica: 1234");
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-pastel-blue">
+      {/* Capybara Mascot */}
+      <motion.div
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 10 }}
+        className="relative w-48 h-48 mb-8"
+      >
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+          src="/capy.png"
+          alt="Capy Mascot"
+          fill
+          className="object-contain drop-shadow-xl"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <motion.div
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="absolute -top-2 -right-2 bg-pastel-orange rounded-full p-2 border-2 border-foreground"
+        >
+          🍊
+        </motion.div>
+      </motion.div>
+
+      <h1 className="font-chewy text-5xl text-foreground mb-4 text-center">
+        CapyPlanner da Maria
+      </h1>
+      
+      {!showPin ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+          {/* Private Area Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowPin(true)}
+            className="flex flex-col items-center p-8 bg-pastel-pink rounded-3xl border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(62,39,35,1)]"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="bg-white p-4 rounded-2xl mb-4 border-2 border-foreground">
+              <Lock size={40} />
+            </div>
+            <span className="font-chewy text-2xl">Meu Cantinho</span>
+            <p className="font-outfit text-sm text-center mt-2">(Acesso com PIN)</p>
+          </motion.button>
+
+          {/* Shared Area Button */}
+          <Link href="/mural" className="w-full h-full">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-full h-full flex flex-col items-center p-8 bg-pastel-yellow rounded-3xl border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(62,39,35,1)]"
+            >
+              <div className="bg-white p-4 rounded-2xl mb-4 border-2 border-foreground">
+                <Users size={40} />
+              </div>
+              <span className="font-chewy text-2xl">Mural Família</span>
+              <p className="font-outfit text-sm text-center mt-2">(Recados & Carinho)</p>
+            </motion.button>
+          </Link>
         </div>
-      </main>
-    </div>
+      ) : (
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white p-8 rounded-3xl border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(62,39,35,1)] w-full max-w-sm"
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="font-chewy text-2xl">Digite seu PIN</h2>
+            <button
+              onClick={() => { setShowPin(false); setPin(""); }}
+              className="text-sm font-outfit underline"
+            >
+              Voltar
+            </button>
+          </div>
+          
+          <div className="flex justify-center gap-4 mb-8">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`w-4 h-4 rounded-full border-2 border-foreground ${
+                  pin.length > i ? "bg-pastel-pink" : "bg-gray-100"
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"].map((btn) => (
+              <button
+                key={btn}
+                onClick={() => {
+                  if (btn === "C") setPin("");
+                  else if (btn === "OK") handleLogin();
+                  else handlePin(btn);
+                }}
+                className="w-full h-16 flex items-center justify-center bg-pastel-green rounded-xl border-2 border-foreground font-chewy text-2xl active:translate-y-1 shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
+              >
+                {btn}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      <footer className="mt-12 text-foreground/50 font-pacifico text-lg">
+        Feito com 🧡 para a Maria
+      </footer>
+    </main>
   );
 }
