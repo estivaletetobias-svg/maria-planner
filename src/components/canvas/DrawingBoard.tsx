@@ -14,7 +14,7 @@ interface Stroke {
   points: Point[];
   color: string;
   width: number;
-  type: "gel" | "glitter" | "highlighter" | "pencil";
+  type: "gel" | "glitter" | "highlighter" | "pencil" | "eraser";
 }
 
 export default function DrawingBoard({ date }: { date: Date }) {
@@ -22,7 +22,7 @@ export default function DrawingBoard({ date }: { date: Date }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
-  const [penType, setPenType] = useState<"gel" | "glitter" | "highlighter" | "pencil">("gel");
+  const [penType, setPenType] = useState<"gel" | "glitter" | "highlighter" | "pencil" | "eraser">("gel");
   const [color, setColor] = useState("#3E2723");
 
   const storageKey = `drawing-${date.toISOString().split('T')[0]}`;
@@ -92,11 +92,18 @@ export default function DrawingBoard({ date }: { date: Date }) {
     ctx.lineJoin = "round";
     ctx.strokeStyle = stroke.color;
     
-    if (stroke.type === "highlighter") {
-      ctx.globalAlpha = 0.4;
-      ctx.lineWidth = stroke.width * 2;
+    if (stroke.type === "eraser") {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.lineWidth = stroke.width * 5;
     } else {
-      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = "source-over";
+      if (stroke.type === "highlighter") {
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = stroke.width * 2;
+      } else {
+        ctx.globalAlpha = 1.0;
+        ctx.lineWidth = stroke.width;
+      }
     }
 
     ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
@@ -150,12 +157,17 @@ export default function DrawingBoard({ date }: { date: Date }) {
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = updatedStroke.color;
-      ctx.lineWidth = updatedStroke.width * (newPoint.pressure || 1);
-      
-      if (updatedStroke.type === "highlighter") ctx.globalAlpha = 0.4;
-      if (updatedStroke.type === "glitter") {
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = updatedStroke.color;
+      if (updatedStroke.type === "eraser") {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.lineWidth = updatedStroke.width * 5;
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.lineWidth = updatedStroke.width * (newPoint.pressure || 1);
+        if (updatedStroke.type === "highlighter") ctx.globalAlpha = 0.4;
+        if (updatedStroke.type === "glitter") {
+          ctx.shadowBlur = 5;
+          ctx.shadowColor = updatedStroke.color;
+        }
       }
       
       const prevPoint = updatedStroke.points[updatedStroke.points.length - 2];
@@ -192,6 +204,7 @@ export default function DrawingBoard({ date }: { date: Date }) {
             { id: "glitter", icon: Sparkles, label: "Glitter" },
             { id: "highlighter", icon: Highlighter, label: "Marca" },
             { id: "pencil", icon: Pencil, label: "Lápis" },
+            { id: "eraser", icon: Eraser, label: "Borracha" },
           ].map((tool) => (
             <button
               key={tool.id}
