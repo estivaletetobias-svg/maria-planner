@@ -16,6 +16,7 @@ interface Task {
 }
 
 export default function PlannerPage() {
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([
     { id: "1", text: "Estudar Matemática", completed: false, type: "school" },
     { id: "2", text: "Regar as plantas", completed: true, type: "home" },
@@ -77,7 +78,7 @@ export default function PlannerPage() {
         </div>
 
         {/* Calendar Picker */}
-        <CalendarPicker />
+        <CalendarPicker selectedDate={selectedDate} onChange={setSelectedDate} />
 
         {/* Task List */}
         <div className="flex-1 flex flex-col">
@@ -109,12 +110,12 @@ export default function PlannerPage() {
         <header className="flex justify-between items-center">
           <h1 className="font-chewy text-4xl text-foreground">Diário da Maria</h1>
           <div className="bg-white px-6 py-2 rounded-full border-2 border-foreground font-pacifico text-xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]">
-            {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+            {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
           </div>
         </header>
         
         <div className="flex-1">
-          <DrawingBoard />
+          <DrawingBoard date={selectedDate} />
         </div>
 
         {/* Reward Overlay */}

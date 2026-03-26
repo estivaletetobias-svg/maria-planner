@@ -6,10 +6,13 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function CalendarPicker() {
+interface CalendarPickerProps {
+  selectedDate: Date;
+  onChange: (date: Date) => void;
+}
+
+export default function CalendarPicker({ selectedDate, onChange }: CalendarPickerProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<"day" | "month" | "year">("month");
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -27,12 +30,9 @@ export default function CalendarPicker() {
           <ChevronLeft size={24} />
         </button>
         
-        <button 
-          onClick={() => setView(view === "month" ? "year" : "month")}
-          className="font-chewy text-xl text-foreground capitalize"
-        >
+        <div className="font-chewy text-xl text-foreground capitalize">
           {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-        </button>
+        </div>
 
         <button
           onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
@@ -60,7 +60,7 @@ export default function CalendarPicker() {
             key={day.toString()}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => setSelectedDate(day)}
+            onClick={() => onChange(day)}
             className={`
               h-8 w-8 rounded-full flex items-center justify-center font-outfit text-sm border-2 transition-all
               ${isSameDay(day, selectedDate) ? "bg-pastel-pink border-foreground" : "border-transparent"}

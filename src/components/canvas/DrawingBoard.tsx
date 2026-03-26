@@ -17,13 +17,37 @@ interface Stroke {
   type: "gel" | "glitter" | "highlighter" | "pencil";
 }
 
-export default function DrawingBoard() {
+export default function DrawingBoard({ date }: { date: Date }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [penType, setPenType] = useState<"gel" | "glitter" | "highlighter" | "pencil">("gel");
   const [color, setColor] = useState("#3E2723");
+
+  const storageKey = `drawing-${date.toISOString().split('T')[0]}`;
+
+  // Load from storage
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setStrokes(parsed);
+    } else {
+      setStrokes([]);
+    }
+  }, [storageKey]);
+
+  // Save to storage
+  useEffect(() => {
+    if (strokes.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(strokes));
+    }
+  }, [strokes, storageKey]);
+
+  useEffect(() => {
+    redraw();
+  }, [strokes]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
