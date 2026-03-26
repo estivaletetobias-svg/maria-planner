@@ -103,17 +103,17 @@ export default function MuralPage() {
       rotation: Math.random() * 20 - 10,
     };
     
-    // Optimistic update
-    setNotes([...notes, newNote]);
-    setNewContent("");
-    setAudioBase64(null);
-    setShowAdd(false);
-
     try {
       await saveNote(newNote);
+      // Wait for re-fetch to see it truly saved
+      await fetchNotes();
+      setNewContent("");
+      setAudioBase64(null);
+      setShowAdd(false);
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      fetchNotes(); // Rollback on error
+      alert("Puxa vida! O recado não foi para o mural. Verifique se as permissões de internet estão ok! 📝");
+      fetchNotes(); // Rollback
     }
   };
 

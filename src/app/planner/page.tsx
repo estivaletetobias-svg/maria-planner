@@ -96,24 +96,30 @@ export default function PlannerPage() {
     const updatedTask = { ...task, completed: !task.completed };
     
     // Add orange if completing for the first time
-    if (!task.completed) {
-       setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
-       setShowReward(true);
-       setTimeout(() => setShowReward(false), 2000);
-       await updateCapyState({ oranges: capy.oranges + 1 });
-    }
-
-    const newTasks = await saveTask(updatedTask);
-    setTasks(newTasks);
-
-    // Check for day completion
-    const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
-    if (allDone) {
-      const todayString = getLocalDateString(new Date());
-      const selectedIsToday = getLocalDateString(selectedDate) === todayString;
-      if (selectedIsToday && capy.lastActiveDate !== todayString) {
-        handleDayCompletion(todayString);
+    try {
+      if (!task.completed && capy) {
+         setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
+         setShowReward(true);
+         setTimeout(() => setShowReward(false), 2000);
+         await updateCapyState({ oranges: capy.oranges + 1 });
       }
+
+      const newTasks = await saveTask(updatedTask);
+      setTasks(newTasks);
+
+      // Check for day completion
+      const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
+      if (allDone) {
+        const todayString = getLocalDateString(new Date());
+        const selectedIsToday = getLocalDateString(selectedDate!) === todayString;
+        if (selectedIsToday && capy.lastActiveDate !== todayString) {
+          handleDayCompletion(todayString);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Ixi, Maria! Não consegui marcar essa missão. Verifique sua internet! 🦦");
+      fetchDayData(); // Refresh to clean stale state
     }
   };
 
@@ -148,10 +154,15 @@ export default function PlannerPage() {
       date: dateStr
     };
     
-    setNewTaskText("");
-    setNewTaskTime("");
-    const newTasks = await saveTask(newTask);
-    setTasks(newTasks);
+    try {
+      const newTasks = await saveTask(newTask);
+      setTasks(newTasks);
+      setNewTaskText("");
+      setNewTaskTime("");
+    } catch (err) {
+      console.error(err);
+      alert("Ops! Houve um erro ao salvar a missão. Tente novamente!  Tangerina! 🦦");
+    }
   };
 
   const handleDeleteTask = async (id: string) => {
