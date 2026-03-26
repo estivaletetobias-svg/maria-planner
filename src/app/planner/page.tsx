@@ -9,13 +9,39 @@ import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles, X, Cal
 import Link from "next/link";
 import { getTasks, saveTask, deleteTask, getCapyState, updateCapyState, Task, CapyState } from "./actions";
 
+const ALL_STICKERS = [
+  { id: 'star', emoji: '⭐', name: 'Estrela Brilhante' },
+  { id: 'heart', emoji: '❤️', name: 'Super Coração' },
+  { id: 'rainbow', emoji: '🌈', name: 'Arco-Íris Mágico' },
+  { id: 'butterfly', emoji: '🦋', name: 'Borboleta Azul' },
+  { id: 'moon', emoji: '🌙', name: 'Lua de Cristal' },
+  { id: 'sun', emoji: '☀️', name: 'Sol da Alegria' },
+  { id: 'crown', emoji: '👑', name: 'Coroa Real' },
+  { id: 'diamond', emoji: '💎', name: 'Diamante Raro' },
+  { id: 'lollipop', emoji: '🍭', name: 'Pirulito Doce' },
+  { id: 'cupcake', emoji: '🧁', name: 'Cupcake de Fada' },
+  { id: 'cat', emoji: '🐱', name: 'Gatinho Fofo' },
+  { id: 'dog', emoji: '🐶', name: 'Cachorrinho Amigo' },
+  { id: 'flower', emoji: '🌸', name: 'Flor de Cerejeira' },
+  { id: 'cloud', emoji: '☁️', name: 'Nuvem de Algodão' },
+  { id: 'music', emoji: '🎵', name: 'Nota Musical' },
+  { id: 'balloon', emoji: '🎈', name: 'Balão de Festa' },
+];
+
 export default function PlannerPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [capy, setCapy] = useState<CapyState | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReward, setShowReward] = useState(false);
+  const [showAlbum, setShowAlbum] = useState(false);
+  const [unlockedSticker, setUnlockedSticker] = useState<typeof ALL_STICKERS[0] | null>(null);
   const [newTaskText, setNewTaskText] = useState("");
+  const [showWardrobe, setShowWardrobe] = useState(false);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [showDiary, setShowDiary] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // Helper to format date consistent for DB (YYYY-MM-DD)
   const getLocalDateString = useCallback((date: Date) => {
@@ -61,6 +87,37 @@ export default function PlannerPage() {
     }
 
     await saveTask(updatedTask);
+
+    // Sticker and Streak Reward logic
+    const newTasks = tasks.map(t => t.id === task.id ? updatedTask : t);
+    const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
+
+    if (allDone && capy) {
+      const todayString = getLocalDateString(new Date());
+      const selectedIsToday = getLocalDateString(selectedDate) === todayString;
+
+      if (selectedIsToday && capy.lastActiveDate !== todayString) {
+        // Unlock random sticker
+        const available = ALL_STICKERS.filter(s => !capy.stickers.includes(s.id));
+        const sticker = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null;
+        
+        let newStreak = capy.streak;
+        const yesterdayString = getLocalDateString(new Date(Date.now() - 86400000));
+        
+        if (capy.lastActiveDate === yesterdayString) {
+          newStreak += 1;
+        } else {
+          newStreak = 1;
+        }
+
+        const newStickers = sticker ? [...capy.stickers, sticker.id] : capy.stickers;
+        
+        setCapy({ ...capy, streak: newStreak, lastActiveDate: todayString, stickers: newStickers });
+        if (sticker) setUnlockedSticker(sticker);
+        
+        await updateCapyState({ streak: newStreak, lastActiveDate: todayString, stickers: newStickers });
+      }
+    }
   };
 
   const handleAddTask = async () => {
@@ -86,12 +143,11 @@ export default function PlannerPage() {
   };
 
   const currentLevel = capy ? Math.floor(capy.oranges / 3) + 1 : 1;
-  const orangesThisLevel = capy ? capy.oranges % 3 : 0;
 
   const handleEquipItem = async (itemId: string) => {
     if (!capy) return;
     const isEquipped = capy.equippedItems.includes(itemId);
-    const updatedEquipped = isEquipped ? capy.equippedItems.filter(id => id !== itemId) : [...capy.equippedItems, itemId]; // Allow multiple items
+    const updatedEquipped = isEquipped ? capy.equippedItems.filter(id => id !== itemId) : [...capy.equippedItems, itemId];
     
     setCapy({ ...capy, equippedItems: updatedEquipped });
     await updateCapyState({ equippedItems: updatedEquipped });
@@ -115,12 +171,6 @@ export default function PlannerPage() {
     { id: "star", name: "Estrela", emoji: "⭐", cost: 3, position: "side" },
   ];
 
-  const [showWardrobe, setShowWardrobe] = useState(false);
-
-  const [editingTask, setEditingTask] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
-  const [showDiary, setShowDiary] = useState(false);
-
   const handleUpdateTask = async (task: Task) => {
     if (!editText) return;
     const updatedTask = { ...task, text: editText };
@@ -129,11 +179,9 @@ export default function PlannerPage() {
     await saveTask(updatedTask);
   };
 
-  const [showCalendar, setShowCalendar] = useState(false);
-
   return (
     <main className="h-screen bg-pastel-pink/10 flex flex-col lg:flex-row overflow-hidden">
-      {/* Mobile Header (Hidden on LG) */}
+      {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b-4 border-foreground p-4 flex justify-between items-center z-30 shrink-0">
         <Link href="/">
           <button className="p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-all">
@@ -148,12 +196,13 @@ export default function PlannerPage() {
           {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
         </button>
         <div className="flex gap-2">
+          <button onClick={() => setShowAlbum(true)} className="p-2 rounded-xl border-2 border-foreground bg-white"><Trophy className="text-pastel-yellow" size={20} /></button>
           <button onClick={() => setShowWardrobe(true)} className="p-2 rounded-xl border-2 border-foreground bg-white"><Sparkles className="text-pastel-orange" size={20} /></button>
           <button onClick={() => setShowDiary(true)} className="p-2 rounded-xl border-2 border-foreground bg-pastel-pink text-white"><Plus size={20} /></button>
         </div>
       </header>
 
-      {/* Sidebar - Desktop Only (Mostly) */}
+      {/* Sidebar - Desktop Only */}
       <aside className="hidden lg:flex w-72 bg-white border-r-4 border-foreground p-6 flex flex-col gap-6 shrink-0 transition-all overflow-y-auto">
         <div className="flex justify-between items-center">
           <Link href="/">
@@ -161,15 +210,23 @@ export default function PlannerPage() {
               <ArrowLeft size={24} />
             </button>
           </Link>
-          <button 
-            onClick={() => setShowWardrobe(true)}
-            className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
-          >
-            <Sparkles className="text-pastel-orange" />
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowAlbum(true)}
+              className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
+            >
+              <Trophy className="text-pastel-yellow" />
+            </button>
+            <button 
+              onClick={() => setShowWardrobe(true)}
+              className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
+            >
+              <Sparkles className="text-pastel-orange" />
+            </button>
+          </div>
         </div>
 
-        {/* Capy Pet (Desktop Sidebar) */}
+        {/* Capy Pet */}
         <div className="flex flex-col items-center bg-pastel-orange/30 p-4 rounded-3xl border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] relative">
           <div className="relative w-24 h-24">
             <Image src="/capy.png" alt="Capy Pet" fill className="object-contain" />
@@ -181,12 +238,17 @@ export default function PlannerPage() {
             })}
           </div>
           <span className="font-chewy text-xl mt-2">Nível {currentLevel}</span>
+          {capy && capy.streak > 0 && (
+            <div className="mt-1 flex items-center gap-1 bg-white/50 px-3 py-0.5 rounded-full border-2 border-foreground/20 text-sm font-bold animate-pulse">
+               🔥 {capy.streak} dias!
+            </div>
+          )}
         </div>
 
         <CalendarPicker selectedDate={selectedDate} onChange={setSelectedDate} />
       </aside>
 
-      {/* Main Content - Missions */}
+      {/* Main Content */}
       <section className="flex-1 p-4 lg:p-8 flex flex-col gap-6 bg-white overflow-y-auto">
         <header className="hidden lg:flex justify-between items-center bg-white/80 backdrop-blur pb-6 border-b-4 border-pastel-pink/20">
           <div>
@@ -209,26 +271,24 @@ export default function PlannerPage() {
           </div>
         </header>
 
-        {/* Mobile Sub-Header */}
         <div className="lg:hidden mb-2">
            <h1 className="font-chewy text-4xl text-foreground">Missões da Maria</h1>
            <div className="flex items-center gap-2 mt-2">
               <div className="bg-white px-4 py-1 rounded-full border-2 border-foreground font-chewy text-lg shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]">
                 🍊 {capy?.oranges || 0}
               </div>
-              <span className="font-pacifico text-pastel-pink text-lg">
+              <span className="font-pacifico text-pastel-pink text-lg text-left">
                 {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
               </span>
            </div>
         </div>
 
-        {/* Add Mission Form (Larger) */}
         <div className="flex gap-4 max-w-4xl">
           <input
             type="text"
             value={newTaskText}
             onChange={(e) => setNewTaskText(e.target.value)}
-            placeholder="O que vamos fazer hoje, Maria?"
+            placeholder="O que vamos fazer hoje?"
             className="flex-1 p-5 rounded-3xl border-4 border-foreground font-outfit text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] focus:ring-4 ring-pastel-pink/20"
             onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
           />
@@ -240,7 +300,6 @@ export default function PlannerPage() {
           </button>
         </div>
 
-        {/* Mission Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
           {tasks.map(task => (
             <motion.div
@@ -299,38 +358,24 @@ export default function PlannerPage() {
         </div>
       </section>
 
-      {/* Diary Modal (Collapsible) */}
       <AnimatePresence>
         {showDiary && (
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25 }}
             className="fixed top-0 right-0 w-full lg:w-[60%] h-full bg-white border-l-8 border-foreground z-40 shadow-[-20px_0px_60px_rgba(0,0,0,0.1)] flex flex-col p-8"
           >
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-chewy text-4xl flex items-center gap-3">
-                📖 Meu Diário Mágico
-              </h2>
-              <button 
-                onClick={() => setShowDiary(false)}
-                className="p-3 rounded-full bg-pastel-pink border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1"
-              >
-                <X size={32} />
-              </button>
+              <h2 className="font-chewy text-3xl sm:text-4xl">📖 Meu Diário</h2>
+              <button onClick={() => setShowDiary(false)} className="p-3 bg-pastel-pink border-4 border-foreground rounded-full shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]"><X size={32} /></button>
             </div>
             <div className="flex-1 bg-pastel-pink/5 rounded-[3rem] border-4 border-foreground border-dashed overflow-hidden p-2">
               <DrawingBoard date={selectedDate} />
             </div>
-            <p className="text-center font-pacifico text-xl text-foreground/40 mt-4">
-              Cada traço é uma memória especial... ✨
-            </p>
           </motion.div>
         )}
-      </AnimatePresence>
-      {/* Wardrobe Modal */}
-      <AnimatePresence>
+
         {showWardrobe && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -342,54 +387,34 @@ export default function PlannerPage() {
               initial={{ scale: 0.8, y: 50 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.8, y: 50 }}
-              className="bg-white w-full max-w-md p-8 rounded-3xl border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(62,39,35,1)]"
+              className="bg-white w-full max-w-md p-8 rounded-3xl border-4 border-foreground"
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="font-chewy text-3xl flex items-center gap-2">
-                  <Sparkles className="text-pastel-orange" /> Guarda-Roupa
-                </h2>
+                <h2 className="font-chewy text-3xl flex items-center gap-2">👕 Guarda-Roupa</h2>
                 <button onClick={() => setShowWardrobe(false)}><X size={28} /></button>
               </div>
-
-              <div className="bg-pastel-orange/10 p-4 rounded-2xl border-2 border-foreground mb-6 flex justify-between items-center">
-                <span className="font-chewy text-xl">Suas Laranjas:</span>
-                <span className="text-2xl font-bold">🍊 {capy?.oranges || 0}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
+              <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                 {items.map((item) => {
                   const isOwned = capy?.ownedItems.includes(item.id);
                   const isEquipped = capy?.equippedItems.includes(item.id);
-                  const canAfford = (capy?.oranges || 0) >= item.cost;
-
                   return (
-                    <div
-                      key={item.id}
-                      className={`p-4 rounded-2xl border-2 border-foreground flex flex-col items-center gap-2 transition-all ${
-                        isEquipped ? "bg-pastel-yellow" : "bg-white"
-                      }`}
-                    >
-                      <span className="text-5xl mb-2">{item.emoji}</span>
-                      <span className="font-chewy text-lg text-center">{item.name}</span>
-                      
+                    <div key={item.id} className="p-4 rounded-2xl border-2 border-foreground flex flex-col items-center gap-2">
+                      <span className="text-5xl">{item.emoji}</span>
+                      <span className="font-chewy">{item.name}</span>
                       {isOwned ? (
                         <button
                           onClick={() => handleEquipItem(item.id)}
-                          className={`w-full py-2 rounded-xl border-2 border-foreground font-chewy text-sm ${
-                            isEquipped ? "bg-white" : "bg-pastel-pink"
-                          } active:translate-y-0.5 transition-all`}
+                          className={`w-full py-2 rounded-xl border-2 border-foreground font-chewy ${isEquipped ? "bg-white" : "bg-pastel-pink"}`}
                         >
                           {isEquipped ? "Tirar" : "Usar"}
                         </button>
                       ) : (
                         <button
-                          disabled={!canAfford}
                           onClick={() => handleBuyItem(item.id, item.cost)}
-                          className={`w-full py-2 rounded-xl border-2 border-foreground font-chewy text-sm flex items-center justify-center gap-1 ${
-                            canAfford ? "bg-pastel-green" : "bg-gray-200 opacity-50 cursor-not-allowed"
-                          } active:translate-y-0.5 transition-all`}
+                          disabled={capy ? capy.oranges < item.cost : true}
+                          className="w-full py-2 rounded-xl border-2 border-foreground bg-pastel-green font-chewy disabled:opacity-50"
                         >
-                          {item.cost} <span className="text-xs">🍊</span>
+                          {item.cost} 🍊
                         </button>
                       )}
                     </div>
@@ -399,32 +424,82 @@ export default function PlannerPage() {
             </motion.div>
           </motion.div>
         )}
+
         {showCalendar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-6 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-6 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              className="bg-white w-full max-w-sm p-6 rounded-3xl border-4 border-foreground"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-chewy text-3xl">Escolher Dia</h2>
+                <button onClick={() => setShowCalendar(false)}><X size={24} /></button>
+              </div>
+              <CalendarPicker 
+                selectedDate={selectedDate} 
+                onChange={(d) => { setSelectedDate(d); setShowCalendar(false); }} 
+              />
+            </motion.div>
+          </motion.div>
+        )}
+
+        {unlockedSticker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-6 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.5, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              className="bg-white p-12 rounded-[4rem] border-8 border-foreground text-center flex flex-col items-center gap-6"
+            >
+              <h2 className="font-chewy text-5xl">Adesivo Novo! 🎊</h2>
+              <div className="text-[120px] animate-bounce">{unlockedSticker.emoji}</div>
+              <p className="font-chewy text-3xl text-pastel-pink">{unlockedSticker.name}</p>
+              <button
+                onClick={() => setUnlockedSticker(null)}
+                className="mt-4 bg-pastel-green px-12 py-4 rounded-3xl border-4 border-foreground font-chewy text-4xl shadow-[8px_8px_0px_0px_rgba(62,39,35,1)]"
+              >
+                UAU! ✨
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showAlbum && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.8, y: 50 }}
               animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.8, y: 50 }}
-              className="bg-white w-full max-w-sm p-6 rounded-3xl border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(62,39,35,1)]"
+              className="bg-white w-full max-w-2xl p-10 rounded-[3rem] border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(62,39,35,1)] flex flex-col max-h-[90vh]"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="font-chewy text-3xl flex items-center gap-2">
-                  <CalendarIcon className="text-pastel-blue" /> Escolher Dia
-                </h2>
-                <button onClick={() => setShowCalendar(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={24} /></button>
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="font-chewy text-5xl flex items-center gap-3"><Trophy className="text-pastel-yellow" size={40} /> Álbum</h2>
+                <button onClick={() => setShowAlbum(false)}><X size={32} /></button>
               </div>
-              <CalendarPicker 
-                selectedDate={selectedDate} 
-                onChange={(d) => {
-                  setSelectedDate(d);
-                  setShowCalendar(false);
-                }} 
-              />
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-4 overflow-y-auto p-2 scrollbar-hide">
+                {ALL_STICKERS.map((sticker) => {
+                  const unlocked = capy?.stickers.includes(sticker.id);
+                  return (
+                    <div key={sticker.id} className={`aspect-square rounded-2xl border-4 border-foreground flex items-center justify-center text-5xl transition-all ${unlocked ? "bg-white rotate-3" : "bg-gray-100 opacity-20 grayscale"}`}>
+                      {unlocked ? sticker.emoji : "?"}
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -21,6 +21,9 @@ export interface CapyState {
   level: number;
   equippedItems: string[];
   ownedItems: string[];
+  stickers: string[]; // List of sticker IDs unlocked
+  streak: number; // Current consecutive days active
+  lastActiveDate: string; // YYYY-MM-DD
 }
 
 const TASKS_KEY_PREFIX = "tasks:";
@@ -47,7 +50,15 @@ export async function deleteTask(id: string, date: string) {
 
 export async function getCapyState(): Promise<CapyState> {
   const state = await redis.get<CapyState>(CAPY_KEY);
-  return state || { oranges: 1, level: 1, equippedItems: [], ownedItems: [] };
+  return state || { 
+    oranges: 1, 
+    level: 1, 
+    equippedItems: [], 
+    ownedItems: [], 
+    stickers: [], 
+    streak: 0, 
+    lastActiveDate: "" 
+  };
 }
 
 export async function updateCapyState(newState: Partial<CapyState>) {
