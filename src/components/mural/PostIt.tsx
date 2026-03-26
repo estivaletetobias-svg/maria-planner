@@ -29,10 +29,13 @@ export default function PostIt({ id, content, color, author, x, y, rotation, onD
       </div>
 
       <button
-        onClick={() => onDelete(id)}
-        className="absolute top-2 right-2 text-foreground/20 hover:text-red-400 transition-colors cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation(); // Evitar que o clique inicie um 'drag' indesejado
+          onDelete(id);
+        }}
+        className="absolute -top-4 -right-4 bg-red-400 text-white p-2 rounded-full border-2 border-foreground hover:scale-110 active:scale-90 transition-all cursor-pointer z-50 shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
       >
-        <Trash2 size={20} />
+        <Trash2 size={24} />
       </button>
       
       <p className="font-pacifico text-2xl text-center leading-relaxed text-foreground">
