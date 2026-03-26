@@ -1,41 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import DrawingBoard from "@/components/canvas/DrawingBoard";
 import CalendarPicker from "@/components/calendar/CalendarPicker";
 import Image from "next/image";
-import { CheckCircle2, Circle, ArrowLeft, Trophy } from "lucide-react";
+import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
-
-interface Task {
-  id: string;
-  text: string;
-  completed: boolean;
-  type: "school" | "home" | "hobby";
-}
+import { getTasks, saveTask, deleteTask, getCapyState, updateCapyState, Task, CapyState } from "./actions";
 
 export default function PlannerPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: "1", text: "Estudar Matemática", completed: false, type: "school" },
-    { id: "2", text: "Regar as plantas", completed: true, type: "home" },
-    { id: "3", text: "Praticar Violão", completed: false, type: "hobby" },
-  ]);
-
-  const [oranges, setOranges] = useState(1);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [capy, setCapy] = useState<CapyState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showReward, setShowReward] = useState(false);
+  const [newTaskText, setNewTaskText] = useState("");
 
-  const toggleTask = (id: string) => {
-    setTasks(tasks.map(t => {
-      if (t.id === id && !t.completed) {
-        setOranges(prev => prev + 1);
-        setShowReward(true);
-        setTimeout(() => setShowReward(false), 2000);
-      }
-      return t.id === id ? { ...t, completed: !t.completed } : t;
-    }));
+  const fetchDayData = useCallback(async () => {
+    setLoading(true);
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    try {
+      const [dayTasks, capyState] = await Promise.all([
+        getTasks(dateStr),
+        getCapyState()
+      ]);
+      setTasks(dayTasks);
+      setCapy(capyState);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchDayData();
+  }, [fetchDayData]);
+
+  const handleToggleTask = async (task: Task) => {
+    const isFirstCompletion = !task.completed;
+    const updatedTask = { ...task, completed: !task.completed };
+    
+    // Optimistic UI
+    setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+
+    if (isFirstCompletion && capy) {
+      setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
+      setShowReward(true);
+      setTimeout(() => setShowReward(false), 2000);
+      await updateCapyState({ oranges: capy.oranges + 1 });
+    }
+
+    await saveTask(updatedTask);
   };
+
+  const handleAddTask = async () => {
+    if (!newTaskText) return;
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const newTask: Task = {
+      id: Math.random().toString(36).substring(7),
+      text: newTaskText,
+      completed: false,
+      type: "school",
+      date: dateStr
+    };
+    
+    setTasks(prev => [...prev, newTask]);
+    setNewTaskText("");
+    await saveTask(newTask);
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    setTasks(prev => prev.filter(t => t.id !== id));
+    await deleteTask(id, dateStr);
+  };
+
+  const currentLevel = capy ? Math.floor(capy.oranges / 3) + 1 : 1;
+  const orangesThisLevel = capy ? capy.oranges % 3 : 0;
 
   return (
     <main className="min-h-screen lg:h-screen bg-pastel-pink/20 flex flex-col lg:flex-row overflow-x-hidden overflow-y-auto lg:overflow-hidden">
@@ -56,7 +99,7 @@ export default function PlannerPage() {
               fill
               className="object-contain"
             />
-            {oranges > 5 && (
+            {capy && capy.oranges > 5 && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -66,12 +109,12 @@ export default function PlannerPage() {
               </motion.div>
             )}
           </div>
-          <span className="font-chewy text-2xl mt-4">Nível {Math.floor(oranges / 3) + 1}</span>
+          <span className="font-chewy text-2xl mt-4">Nível {currentLevel}</span>
           <div className="flex gap-1 mt-2">
-            {[...Array(oranges % 3)].map((_, i) => (
+            {[...Array(orangesThisLevel)].map((_, i) => (
               <span key={i} className="text-xl">🍊</span>
             ))}
-            {[...Array(3 - (oranges % 3))].map((_, i) => (
+            {[...Array(3 - orangesThisLevel)].map((_, i) => (
               <span key={i} className="text-xl opacity-20">🍊</span>
             ))}
           </div>
@@ -81,25 +124,51 @@ export default function PlannerPage() {
         <CalendarPicker selectedDate={selectedDate} onChange={setSelectedDate} />
 
         {/* Task List */}
-        <div className="flex-1 flex flex-col">
-          <h2 className="font-chewy text-3xl mb-4 flex items-center gap-2">
+        <div className="flex-1 flex flex-col gap-4">
+          <h2 className="font-chewy text-3xl flex items-center gap-2">
             Minhas Missões
           </h2>
-          <div className="space-y-4">
+
+          {/* Add Task Input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newTaskText}
+              onChange={(e) => setNewTaskText(e.target.value)}
+              placeholder="Nova missão..."
+              className="flex-1 p-3 rounded-xl border-2 border-foreground font-outfit text-sm outline-none shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+            />
+            <button
+              onClick={handleAddTask}
+              className="p-3 bg-pastel-pink rounded-xl border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(62,39,35,1)] active:translate-y-0.5"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-3">
             {tasks.map(task => (
-              <button
-                key={task.id}
-                onClick={() => toggleTask(task.id)}
-                className={`w-full p-4 rounded-2xl border-2 border-foreground flex items-center gap-3 active:translate-y-1 transition-all ${
-                  task.completed ? "bg-pastel-green opacity-60" : "bg-white"
-                } shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]`}
-              >
-                {task.completed ? <CheckCircle2 size={24} className="text-foreground" /> : <Circle size={24} />}
-                <span className={`font-outfit text-lg text-left flex-1 ${task.completed ? "line-through" : ""}`}>
-                  {task.text}
-                </span>
-                {task.completed && <span className="text-xl">🍊</span>}
-              </button>
+              <div key={task.id} className="group relative">
+                <button
+                  onClick={() => handleToggleTask(task)}
+                  className={`w-full p-4 rounded-2xl border-2 border-foreground flex items-center gap-3 active:translate-y-1 transition-all ${
+                    task.completed ? "bg-pastel-green opacity-60" : "bg-white"
+                  } shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]`}
+                >
+                  {task.completed ? <CheckCircle2 size={24} className="text-foreground" /> : <Circle size={24} />}
+                  <span className={`font-outfit text-lg text-left flex-1 ${task.completed ? "line-through" : ""}`}>
+                    {task.text}
+                  </span>
+                  {task.completed && <span className="text-xl">🍊</span>}
+                </button>
+                <button
+                  onClick={() => handleDeleteTask(task.id)}
+                  className="absolute -top-2 -right-2 bg-white text-red-500 p-1 rounded-full border-2 border-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             ))}
           </div>
         </div>
