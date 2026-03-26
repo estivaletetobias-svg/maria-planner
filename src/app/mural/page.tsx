@@ -1,56 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PostIt from "@/components/mural/PostIt";
-import { Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-
-interface Note {
-  id: string;
-  content: string;
-  color: string;
-  author: string;
-  x: number;
-  y: number;
-  rotation: number;
-}
+import { getNotes, addNote as saveNote, deleteNote as removeNote, Note } from "./actions";
 
 export default function MuralPage() {
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: "1",
-      content: "Maria, que você tenha um dia incrível!",
-      color: "var(--pastel-pink)",
-      author: "Mãe",
-      x: 100,
-      y: 150,
-      rotation: -5,
-    },
-    {
-      id: "2",
-      content: "Arrasa na escola hoje, filha!",
-      color: "var(--pastel-yellow)",
-      author: "Pai",
-      x: 400,
-      y: 200,
-      rotation: 8,
-    },
-    {
-      id: "3",
-      content: "Capy diz: Lembre-se de beber água!",
-      color: "var(--pastel-green)",
-      author: "Capy",
-      x: 250,
-      y: 400,
-      rotation: 2,
-    },
-  ]);
-
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [newAuthor, setNewAuthor] = useState("Pai");
   const [newColor, setNewColor] = useState("var(--pastel-pink)");
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  const fetchNotes = async () => {
+    try {
+      const data = await getNotes();
+      setNotes(data);
+    } catch (error) {
+      console.error("Erro ao carregar notas:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const colors = [
     { name: "Pink", value: "var(--pastel-pink)" },
@@ -60,10 +38,10 @@ export default function MuralPage() {
     { name: "Orange", value: "var(--pastel-orange)" },
   ];
 
-  const addNote = () => {
+  const handleAddNote = async () => {
     if (!newContent) return;
     const newNote: Note = {
-      id: Math.random().toString(),
+      id: Math.random().toString(36).substring(7),
       content: newContent,
       author: newAuthor,
       color: newColor,
@@ -71,13 +49,29 @@ export default function MuralPage() {
       y: Math.random() * 300 + 100,
       rotation: Math.random() * 20 - 10,
     };
+    
+    // Optimistic update
     setNotes([...notes, newNote]);
     setNewContent("");
     setShowAdd(false);
+
+    try {
+      await saveNote(newNote);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      fetchNotes(); // Rollback on error
+    }
   };
 
-  const deleteNote = (id: string) => {
+  const handleDeleteNote = async (id: string) => {
+    // Optimistic update
     setNotes(notes.filter(n => n.id !== id));
+    try {
+      await removeNote(id);
+    } catch (error) {
+      console.error("Erro ao deletar:", error);
+      fetchNotes(); // Rollback
+    }
   };
 
   return (
@@ -105,9 +99,15 @@ export default function MuralPage() {
       </header>
 
       <div className="flex-1 relative cursor-default">
-        {notes.map((note) => (
-          <PostIt key={note.id} {...note} onDelete={deleteNote} />
-        ))}
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 size={48} className="animate-spin text-pastel-pink" />
+          </div>
+        ) : (
+          notes.map((note) => (
+            <PostIt key={note.id} {...note} onDelete={handleDeleteNote} />
+          ))
+        )}
       </div>
 
       {/* Add Note Modal */}
@@ -171,7 +171,7 @@ export default function MuralPage() {
                 </div>
 
                 <button
-                  onClick={addNote}
+                  onClick={handleAddNote}
                   className="w-full py-4 rounded-xl border-4 border-foreground font-chewy text-2xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 transition-all"
                   style={{ backgroundColor: newColor }}
                 >
