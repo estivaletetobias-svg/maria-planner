@@ -1,20 +1,26 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Pin, Trash2 } from "lucide-react";
+import { Pin, Trash2, Volume2 } from "lucide-react";
 
 interface PostItProps {
   id: string;
   content: string;
   color: string;
   author: string;
+  audio?: string;
   x: number;
   y: number;
   rotation: number;
   onDelete: (id: string) => void;
 }
 
-export default function PostIt({ id, content, color, author, x, y, rotation, onDelete }: PostItProps) {
+export default function PostIt({ id, content, color, author, audio, x, y, rotation, onDelete }: PostItProps) {
+  const handlePlay = () => {
+    if (!audio) return;
+    const sound = new Audio(audio);
+    sound.play();
+  };
   return (
     <motion.div
       drag
@@ -42,6 +48,15 @@ export default function PostIt({ id, content, color, author, x, y, rotation, onD
         {content}
       </p>
       
+      {audio && (
+        <button
+          onClick={handlePlay}
+          className="absolute bottom-2 left-2 bg-white p-2 rounded-full border-2 border-foreground hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(62,39,35,1)] animate-pulse"
+        >
+          <Volume2 size={24} className="text-pastel-pink" />
+        </button>
+      )}
+
       <span className="absolute bottom-4 right-4 font-chewy text-sm text-foreground/60 italic">
         - {author}
       </span>

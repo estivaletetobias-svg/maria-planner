@@ -13,6 +13,7 @@ export interface Note {
   content: string;
   color: string;
   author: string;
+  audio?: string; // Base64 audio data
   x: number;
   y: number;
   rotation: number;

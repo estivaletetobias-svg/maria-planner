@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PostIt from "@/components/mural/PostIt";
-import { Plus, X, ArrowLeft, Loader2 } from "lucide-react";
+import { Mic, Square, Volume2, Plus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getNotes, addNote as saveNote, deleteNote as removeNote, Note } from "./actions";
 
@@ -14,10 +14,47 @@ export default function MuralPage() {
   const [newContent, setNewContent] = useState("");
   const [newAuthor, setNewAuthor] = useState("Pai");
   const [newColor, setNewColor] = useState("var(--pastel-pink)");
+  
+  // Audio state
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNotes();
   }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          setAudioBase64(reader.result as string);
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Erro ao acessar microfone:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
 
   const fetchNotes = async () => {
     try {
@@ -39,12 +76,13 @@ export default function MuralPage() {
   ];
 
   const handleAddNote = async () => {
-    if (!newContent) return;
+    if (!newContent && !audioBase64) return;
     const newNote: Note = {
       id: Math.random().toString(36).substring(7),
       content: newContent,
       author: newAuthor,
       color: newColor,
+      audio: audioBase64 || undefined,
       x: Math.random() * 500 + 50,
       y: Math.random() * 300 + 100,
       rotation: Math.random() * 20 - 10,
@@ -53,6 +91,7 @@ export default function MuralPage() {
     // Optimistic update
     setNotes([...notes, newNote]);
     setNewContent("");
+    setAudioBase64(null);
     setShowAdd(false);
 
     try {
@@ -167,6 +206,28 @@ export default function MuralPage() {
                         style={{ backgroundColor: c.value }}
                       />
                     ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-chewy text-xl mb-2">Adicionar Voz:</label>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`p-4 rounded-full border-4 border-foreground transition-all shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] ${
+                        isRecording ? "bg-red-500 animate-pulse text-white" : "bg-white hover:bg-red-100"
+                      }`}
+                    >
+                      {isRecording ? <Square size={32} /> : <Mic size={32} />}
+                    </button>
+                    {audioBase64 && !isRecording && (
+                      <div className="flex items-center gap-2 bg-pastel-green px-4 py-2 rounded-xl border-2 border-foreground animate-bounce">
+                        <Volume2 size={24} />
+                        <span className="font-chewy">Voz Gravada!</span>
+                        <button onClick={() => setAudioBase64(null)} className="ml-2 text-red-500"><X size={16} /></button>
+                      </div>
+                    )}
+                    {isRecording && <span className="font-chewy text-red-500 animate-pulse">Gravando...</span>}
                   </div>
                 </div>
 
