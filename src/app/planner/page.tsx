@@ -117,154 +117,185 @@ export default function PlannerPage() {
 
   const [showWardrobe, setShowWardrobe] = useState(false);
 
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [showDiary, setShowDiary] = useState(false);
+
+  const handleUpdateTask = async (task: Task) => {
+    if (!editText) return;
+    const updatedTask = { ...task, text: editText };
+    setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+    setEditingTask(null);
+    await saveTask(updatedTask);
+  };
+
   return (
-    <main className="min-h-screen lg:h-screen bg-pastel-pink/20 flex flex-col lg:flex-row overflow-x-hidden overflow-y-auto lg:overflow-hidden">
-      {/* Sidebar - Capy & Tasks */}
-      <aside className="w-full lg:w-80 bg-white border-b-4 lg:border-b-0 lg:border-r-4 border-foreground p-6 flex flex-col gap-6 shrink-0">
-        <div className="flex justify-between items-center">
+    <main className="h-screen bg-pastel-pink/10 flex overflow-hidden">
+      {/* Sidebar - Navigator (Small) */}
+      <aside className="w-20 lg:w-72 bg-white border-r-4 border-foreground p-4 flex flex-col gap-6 shrink-0 transition-all overflow-y-auto">
+        <div className="flex flex-col items-center gap-4">
           <Link href="/">
-            <button className="p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-all cursor-pointer">
+            <button className="p-3 rounded-2xl border-2 border-foreground hover:bg-pastel-blue transition-all cursor-pointer">
               <ArrowLeft size={24} />
             </button>
           </Link>
           <button 
             onClick={() => setShowWardrobe(true)}
-            className="p-2 rounded-xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
+            className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
           >
             <Sparkles className="text-pastel-orange" />
           </button>
         </div>
 
-        {/* Capy Pet */}
-        <div className="flex flex-col items-center bg-pastel-orange/30 p-4 rounded-3xl border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] relative">
-          <div className="relative w-32 h-32">
-            <Image
-              src="/capy.png"
-              alt="Capy Pet"
-              fill
-              className="object-contain"
-            />
+        {/* Capy Pet (Mini) */}
+        <div className="hidden lg:flex flex-col items-center bg-pastel-orange/30 p-4 rounded-3xl border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] relative scale-90">
+          <div className="relative w-24 h-24">
+            <Image src="/capy.png" alt="Capy Pet" fill className="object-contain" />
             {capy && capy.equippedItems.map(itemId => {
-              const item = items.find(i => i.id === itemId);
-              if (!item) return null;
-
-              let emojiStyle = {};
-              if (item.position === "top") {
-                emojiStyle = { top: "-10px", right: "-10px" };
-              } else if (item.position === "eyes") {
-                emojiStyle = { top: "30%", left: "50%", transform: "translateX(-50%)" };
-              } else if (item.position === "side") {
-                emojiStyle = { bottom: "10px", right: "-10px" };
-              }
-
-              return (
-                <motion.div
-                  key={item.id}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute text-4xl drop-shadow-lg"
-                  style={emojiStyle}
-                >
-                  {item.emoji}
-                </motion.div>
-              );
+               const item = items.find(i => i.id === itemId);
+               if (!item) return null;
+               const styles = item.position === "top" ? { top: -5, right: -5 } : item.position === "eyes" ? { top: "30%", left: "50%", transform: "translateX(-50%)" } : { bottom: 5, right: -5 };
+               return <div key={item.id} className="absolute text-3xl" style={styles}>{item.emoji}</div>;
             })}
           </div>
-          <span className="font-chewy text-2xl mt-4">Nível {currentLevel}</span>
-          <div className="flex gap-1 mt-2">
-            {[...Array(orangesThisLevel)].map((_, i) => (
-              <span key={i} className="text-xl">🍊</span>
-            ))}
-            {[...Array(3 - orangesThisLevel)].map((_, i) => (
-              <span key={i} className="text-xl opacity-20">🍊</span>
-            ))}
-          </div>
+          <span className="font-chewy text-xl mt-2">Nível {currentLevel}</span>
         </div>
 
-        {/* Calendar Picker */}
-        <CalendarPicker selectedDate={selectedDate} onChange={setSelectedDate} />
-
-        {/* Task List */}
-        <div className="flex-1 flex flex-col gap-4">
-          <h2 className="font-chewy text-3xl flex items-center gap-2">
-            Minhas Missões
-          </h2>
-
-          {/* Add Task Input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newTaskText}
-              onChange={(e) => setNewTaskText(e.target.value)}
-              placeholder="Nova missão..."
-              className="flex-1 p-3 rounded-xl border-2 border-foreground font-outfit text-sm outline-none shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-            />
-            <button
-              onClick={handleAddTask}
-              className="p-3 bg-pastel-pink rounded-xl border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(62,39,35,1)] active:translate-y-0.5"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {tasks.map(task => (
-              <div key={task.id} className="group relative">
-                <button
-                  onClick={() => handleToggleTask(task)}
-                  className={`w-full p-4 rounded-2xl border-2 border-foreground flex items-center gap-3 active:translate-y-1 transition-all ${
-                    task.completed ? "bg-pastel-green opacity-60" : "bg-white"
-                  } shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]`}
-                >
-                  {task.completed ? <CheckCircle2 size={24} className="text-foreground" /> : <Circle size={24} />}
-                  <span className={`font-outfit text-lg text-left flex-1 ${task.completed ? "line-through" : ""}`}>
-                    {task.text}
-                  </span>
-                  {task.completed && <span className="text-xl">🍊</span>}
-                </button>
-                <button
-                  onClick={() => handleDeleteTask(task.id)}
-                  className="absolute -top-2 -right-2 bg-white text-red-500 p-1 rounded-full border-2 border-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
+        <div className="hidden lg:block">
+           <CalendarPicker selectedDate={selectedDate} onChange={setSelectedDate} />
         </div>
       </aside>
 
-      {/* Main Content - Drawing Board */}
-      <section className="flex-1 p-4 lg:p-6 flex flex-col gap-6 relative min-h-[700px] lg:min-h-0">
-        <header className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <h1 className="font-chewy text-4xl text-foreground">Diário da Maria</h1>
-          <div className="bg-white px-6 py-2 rounded-full border-2 border-foreground font-pacifico text-xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]">
-            {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+      {/* Main Content - Missions (Priority) */}
+      <section className="flex-1 p-6 flex flex-col gap-8 bg-white overflow-y-auto">
+        <header className="flex justify-between items-center bg-white/80 backdrop-blur pb-4 border-b-4 border-pastel-pink/20">
+          <div>
+            <h1 className="font-chewy text-5xl text-foreground">Missões da Maria</h1>
+            <p className="font-pacifico text-2xl text-pastel-pink">
+              {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
+          
+          <div className="flex gap-4">
+            <div className="bg-white px-8 py-3 rounded-2xl border-4 border-foreground font-chewy text-2xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] flex items-center gap-2">
+              🍊 <span className="text-pastel-orange">{capy?.oranges || 0}</span>
+            </div>
+            <button
+              onClick={() => setShowDiary(true)}
+              className="bg-pastel-pink px-8 py-3 rounded-2xl border-4 border-foreground font-chewy text-2xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 transition-all flex items-center gap-2"
+            >
+              📖 Abrir Diário
+            </button>
           </div>
         </header>
-        
-        <div className="flex-1">
-          <DrawingBoard date={selectedDate} />
+
+        {/* Add Mission Form (Larger) */}
+        <div className="flex gap-4 max-w-4xl">
+          <input
+            type="text"
+            value={newTaskText}
+            onChange={(e) => setNewTaskText(e.target.value)}
+            placeholder="O que vamos fazer hoje, Maria?"
+            className="flex-1 p-5 rounded-3xl border-4 border-foreground font-outfit text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] focus:ring-4 ring-pastel-pink/20"
+            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+          />
+          <button
+            onClick={handleAddTask}
+            className="px-8 bg-pastel-green rounded-3xl border-4 border-foreground font-chewy text-3xl shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1 active:translate-y-2 transition-all"
+          >
+            <Plus size={32} />
+          </button>
         </div>
 
-        {/* Reward Overlay */}
-        <AnimatePresence>
-          {showReward && (
+        {/* Mission Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
+          {tasks.map(task => (
             <motion.div
-              initial={{ scale: 0.5, opacity: 0, y: 100 }}
-              animate={{ scale: 1, opacity: 1, y: -200 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              className="absolute left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center"
+              layout
+              key={task.id}
+              className={`group relative p-6 rounded-[2.5rem] border-4 border-foreground flex items-center gap-6 transition-all ${
+                task.completed ? "bg-pastel-green/20 opacity-80" : "bg-white"
+              } shadow-[6px_6px_0px_0px_rgba(62,39,35,1)]`}
             >
-              <Trophy size={80} className="text-yellow-500 mb-4" />
-              <span className="font-chewy text-4xl text-foreground drop-shadow-md">
-                +1 Laranja para a Capy! 🍊
-              </span>
+              <button
+                onClick={() => handleToggleTask(task)}
+                className={`w-14 h-14 rounded-2xl border-4 border-foreground flex items-center justify-center shrink-0 transition-all ${
+                  task.completed ? "bg-pastel-green" : "hover:bg-pastel-pink/10"
+                }`}
+              >
+                {task.completed ? <CheckCircle2 size={32} /> : <Circle size={32} />}
+              </button>
+
+              <div className="flex-1">
+                {editingTask === task.id ? (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      className="w-full bg-transparent font-outfit text-2xl outline-none border-b-2 border-foreground"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateTask(task)}
+                    />
+                    <button onClick={() => handleUpdateTask(task)} className="bg-pastel-green p-2 rounded-lg border-2 border-foreground">OK</button>
+                  </div>
+                ) : (
+                  <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40" : "text-foreground"}`}>
+                    {task.text}
+                  </p>
+                )}
+              </div>
+
+              {task.completed && <span className="text-4xl animate-bounce">🍊</span>}
+
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => { setEditingTask(task.id); setEditText(task.text); }}
+                  className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-colors"
+                >
+                  <Sparkles size={20} />
+                </button>
+                <button
+                  onClick={() => handleDeleteTask(task.id)}
+                  className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-red-400 transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          ))}
+        </div>
       </section>
+
+      {/* Diary Modal (Collapsible) */}
+      <AnimatePresence>
+        {showDiary && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25 }}
+            className="fixed top-0 right-0 w-full lg:w-[60%] h-full bg-white border-l-8 border-foreground z-40 shadow-[-20px_0px_60px_rgba(0,0,0,0.1)] flex flex-col p-8"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-chewy text-4xl flex items-center gap-3">
+                📖 Meu Diário Mágico
+              </h2>
+              <button 
+                onClick={() => setShowDiary(false)}
+                className="p-3 rounded-full bg-pastel-pink border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] hover:translate-y-1"
+              >
+                <X size={32} />
+              </button>
+            </div>
+            <div className="flex-1 bg-pastel-pink/5 rounded-[3rem] border-4 border-foreground border-dashed overflow-hidden p-2">
+              <DrawingBoard date={selectedDate} />
+            </div>
+            <p className="text-center font-pacifico text-xl text-foreground/40 mt-4">
+              Cada traço é uma memória especial... ✨
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Wardrobe Modal */}
       <AnimatePresence>
         {showWardrobe && (
