@@ -22,30 +22,31 @@ export interface CapyState {
   level: number;
   equippedItems: string[];
   ownedItems: string[];
-  stickers: string[]; // List of sticker IDs unlocked
-  streak: number; // Current consecutive days active
-  lastActiveDate: string; // YYYY-MM-DD
+  stickers: string[];
+  streak: number;
+  lastActiveDate: string;
 }
 
-const TASKS_KEY_PREFIX = "tasks:";
+const TASKS_KEY_PREFIX = "tasks_h:"; // Note the change to 'h' for hash
 const CAPY_KEY = "capy_state";
 
 export async function getTasks(date: string): Promise<Task[]> {
-  const tasks = await redis.get<Task[]>(`${TASKS_KEY_PREFIX}${date}`);
-  return tasks || [];
+  const tasksObj = await redis.hgetall<Record<string, Task>>(`${TASKS_KEY_PREFIX}${date}`);
+  if (!tasksObj) return [];
+  // Return values as array
+  return Object.values(tasksObj);
 }
 
 export async function saveTask(task: Task) {
-  const tasks = await getTasks(task.date);
-  const updatedTasks = [...tasks.filter(t => t.id !== task.id), task];
-  await redis.set(`${TASKS_KEY_PREFIX}${task.date}`, updatedTasks);
+  // Use HSET to avoid race conditions and overwriting other tasks
+  await redis.hset(`${TASKS_KEY_PREFIX}${task.date}`, {
+    [task.id]: task
+  });
   revalidatePath("/planner");
 }
 
 export async function deleteTask(id: string, date: string) {
-  const tasks = await getTasks(date);
-  const updatedTasks = tasks.filter((t) => t.id !== id);
-  await redis.set(`${TASKS_KEY_PREFIX}${date}`, updatedTasks);
+  await redis.hdel(`${TASKS_KEY_PREFIX}${date}`, id);
   revalidatePath("/planner");
 }
 

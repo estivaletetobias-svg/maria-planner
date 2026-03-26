@@ -335,7 +335,7 @@ export default function PlannerPage() {
             type="time"
             value={newTaskTime}
             onChange={(e) => setNewTaskTime(e.target.value)}
-            className="w-full sm:w-40 p-5 rounded-3xl border-4 border-foreground font-chewy text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)]"
+            className="w-full sm:w-40 p-5 rounded-3xl border-4 border-foreground font-chewy text-xl outline-none shadow-[4px_4px_0px_0px_rgba(62,39,35,1)] text-foreground bg-white"
           />
           <button
             onClick={handleAddTask}
@@ -345,75 +345,94 @@ export default function PlannerPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
-          {tasks.map(task => (
-            <motion.div
-              layout
-              key={task.id}
-              className={`group relative p-6 rounded-[2.5rem] border-4 border-foreground flex items-center gap-6 transition-all ${
-                task.completed ? "bg-pastel-green/20 opacity-80" : "bg-white"
-              } shadow-[6px_6px_0px_0px_rgba(62,39,35,1)]`}
-            >
-              <button
-                onClick={() => handleToggleTask(task)}
-                className={`w-14 h-14 rounded-2xl border-4 border-foreground flex items-center justify-center shrink-0 transition-all ${
-                  task.completed ? "bg-pastel-green" : "hover:bg-pastel-pink/10"
-                }`}
-              >
-                {task.completed ? <CheckCircle2 size={32} /> : <Circle size={32} />}
-              </button>
+        <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center p-10">
+          {loading ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 border-8 border-pastel-orange border-t-transparent rounded-full animate-spin"></div>
+              <p className="font-chewy text-2xl text-foreground">Abrindo a mochila...</p>
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="flex flex-col items-center gap-6 text-center max-w-sm">
+              <div className="relative w-32 h-32 opacity-20 scale-75">
+                <Image src="/capy.png" alt="Capy" fill className="object-contain grayscale" />
+              </div>
+              <div>
+                <p className="font-chewy text-3xl text-foreground/40">Nenhuma missão por aqui!</p>
+                <p className="font-outfit text-xl text-foreground/30 mt-2">Que tal planejar algo divertido para hoje? ✨</p>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+              {tasks.map(task => (
+                <motion.div
+                  layout
+                  key={task.id}
+                  className={`group relative p-6 rounded-[2.5rem] border-4 border-foreground flex items-center gap-6 transition-all ${
+                    task.completed ? "bg-pastel-green/20 opacity-80" : "bg-white"
+                  } shadow-[6px_6px_0px_0px_rgba(62,39,35,1)]`}
+                >
+                  <button
+                    onClick={() => handleToggleTask(task)}
+                    className={`w-14 h-14 rounded-2xl border-4 border-foreground flex items-center justify-center shrink-0 transition-all ${
+                      task.completed ? "bg-pastel-green" : "hover:bg-pastel-pink/10"
+                    }`}
+                  >
+                    {task.completed ? <CheckCircle2 size={32} /> : <Circle size={32} />}
+                  </button>
 
-              <div className="flex-1">
-                {editingTask === task.id ? (
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      autoFocus
-                      className="flex-1 min-w-[200px] bg-transparent font-outfit text-2xl outline-none border-b-2 border-foreground"
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateTask(task)}
-                    />
-                    <input
-                      type="time"
-                      className="w-32 bg-transparent font-chewy text-xl outline-none border-b-2 border-foreground"
-                      value={editTime}
-                      onChange={(e) => setEditTime(e.target.value)}
-                    />
-                    <button onClick={() => handleUpdateTask(task)} className="bg-pastel-green px-4 py-2 rounded-xl border-2 border-foreground shadow-[2px_2px_0] active:translate-y-0.5">OK</button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col">
-                    <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40 text-left" : "text-foreground text-left"}`}>
-                      {task.text}
-                    </p>
-                    {task.time && (
-                      <div className="flex items-center gap-1 text-pastel-pink font-chewy text-lg mt-1">
-                        <Clock size={16} />
-                        {task.time}
+                  <div className="flex-1">
+                    {editingTask === task.id ? (
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          autoFocus
+                          className="flex-1 min-w-[200px] bg-white text-foreground font-outfit text-2xl outline-none border-b-2 border-foreground"
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleUpdateTask(task)}
+                        />
+                        <input
+                          type="time"
+                          className="w-32 bg-white text-foreground font-chewy text-xl outline-none border-b-2 border-foreground"
+                          value={editTime}
+                          onChange={(e) => setEditTime(e.target.value)}
+                        />
+                        <button onClick={() => handleUpdateTask(task)} className="bg-pastel-green px-4 py-2 rounded-xl border-2 border-foreground shadow-[2px_2px_0] active:translate-y-0.5">OK</button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col">
+                        <p className={`font-outfit text-2xl ${task.completed ? "line-through text-foreground/40 text-left" : "text-foreground text-left"}`}>
+                          {task.text}
+                        </p>
+                        {task.time && (
+                          <div className="flex items-center gap-1 text-pastel-pink font-chewy text-lg mt-1">
+                            <Clock size={16} />
+                            {task.time}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              {task.completed && <span className="text-4xl animate-bounce">🍊</span>}
+                  {task.completed && <span className="text-4xl animate-bounce">🍊</span>}
 
-              <div className="absolute top-4 right-4 flex gap-2">
-                <button
-                  onClick={() => { setEditingTask(task.id); setEditText(task.text); setEditTime(task.time || ""); }}
-                  className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-colors"
-                >
-                  <Sparkles size={20} />
-                </button>
-                <button
-                  onClick={() => handleDeleteTask(task.id)}
-                  className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-red-400 transition-colors"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    <button
+                      onClick={() => { setEditingTask(task.id); setEditText(task.text); setEditTime(task.time || ""); }}
+                      className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-pastel-blue transition-colors text-foreground"
+                    >
+                      <Sparkles size={20} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="bg-white p-2 rounded-xl border-2 border-foreground hover:bg-red-400 transition-colors text-foreground"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
