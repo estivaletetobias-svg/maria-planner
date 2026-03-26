@@ -31,14 +31,14 @@ const TASKS_KEY_PREFIX = "tasks_h:"; // Note the change to 'h' for hash
 const CAPY_KEY = "capy_state";
 
 export async function getTasks(date: string): Promise<Task[]> {
+  console.log(`[Redis] Lendo tarefas para: ${date}`);
   const tasksObj = await redis.hgetall<Record<string, Task>>(`${TASKS_KEY_PREFIX}${date}`);
   if (!tasksObj) return [];
-  // Return values as array
   return Object.values(tasksObj);
 }
 
 export async function saveTask(task: Task) {
-  // Use HSET to avoid race conditions and overwriting other tasks
+  console.log(`[Redis] Salvando tarefa "${task.text}" em: ${task.date}`);
   await redis.hset(`${TASKS_KEY_PREFIX}${task.date}`, {
     [task.id]: task
   });

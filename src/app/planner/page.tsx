@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import DrawingBoard from "@/components/canvas/DrawingBoard";
 import CalendarPicker from "@/components/calendar/CalendarPicker";
 import Image from "next/image";
-import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles, X, Calendar as CalendarIcon, Clock, Bell, BellOff } from "lucide-react";
+import { CheckCircle2, Circle, ArrowLeft, Trophy, Trash2, Plus, Sparkles, X, Calendar as CalendarIcon, Clock, Bell, BellOff, RefreshCw } from "lucide-react";
 import { subscribeToNotifications, checkNotificationPermission } from "@/lib/notifications";
 import Link from "next/link";
 import { getTasks, saveTask, deleteTask, getCapyState, updateCapyState, Task, CapyState } from "./actions";
@@ -30,7 +30,7 @@ const ALL_STICKERS = [
 ];
 
 export default function PlannerPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [capy, setCapy] = useState<CapyState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,9 @@ export default function PlannerPage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<string>("default");
 
+  // Fix hydration by initializing date on the client
   useEffect(() => {
+    setSelectedDate(new Date());
     checkNotificationPermission().then(setNotificationStatus);
   }, []);
 
@@ -63,15 +65,15 @@ export default function PlannerPage() {
     }
   };
 
-  // Helper to format date consistent for DB (YYYY-MM-DD)
-  const getLocalDateString = useCallback((date: Date) => {
+  const getLocalDateString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  }, []);
+  };
 
   const fetchDayData = useCallback(async () => {
+    if (!selectedDate) return;
     setLoading(true);
     const dateStr = getLocalDateString(selectedDate);
     try {
@@ -86,16 +88,16 @@ export default function PlannerPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, getLocalDateString]);
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchDayData();
   }, [fetchDayData]);
 
   const handleToggleTask = async (task: Task) => {
+    if (!selectedDate) return;
     const updatedTask = { ...task, completed: !task.completed };
     
-    // Optimistic UI update with reward check
     setTasks(prev => {
       const newTasks = prev.map(t => t.id === task.id ? updatedTask : t);
       const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
@@ -103,7 +105,6 @@ export default function PlannerPage() {
       if (allDone && capy) {
         const todayString = getLocalDateString(new Date());
         const selectedIsToday = getLocalDateString(selectedDate) === todayString;
-
         if (selectedIsToday && capy.lastActiveDate !== todayString) {
           handleDayCompletion(todayString);
         }
@@ -111,7 +112,6 @@ export default function PlannerPage() {
       return newTasks;
     });
 
-    // Reward 1 orange if completing
     if (!task.completed && capy) {
        setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
        setShowReward(true);
@@ -124,10 +124,8 @@ export default function PlannerPage() {
 
   const handleDayCompletion = async (todayString: string) => {
     if (!capy) return;
-    
     const available = ALL_STICKERS.filter(s => !capy.stickers.includes(s.id));
     const sticker = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null;
-    
     let newStreak = capy.streak;
     const yesterdayString = getLocalDateString(new Date(Date.now() - 86400000));
     
@@ -138,15 +136,13 @@ export default function PlannerPage() {
     }
 
     const newStickers = sticker ? [...capy.stickers, sticker.id] : capy.stickers;
-    
     setCapy(prev => prev ? ({ ...prev, streak: newStreak, lastActiveDate: todayString, stickers: newStickers }) : null);
     if (sticker) setUnlockedSticker(sticker);
-    
     await updateCapyState({ streak: newStreak, lastActiveDate: todayString, stickers: newStickers });
   };
 
   const handleAddTask = async () => {
-    if (!newTaskText) return;
+    if (!newTaskText || !selectedDate) return;
     const dateStr = getLocalDateString(selectedDate);
     const newTask: Task = {
       id: Math.random().toString(36).substring(7),
@@ -164,39 +160,11 @@ export default function PlannerPage() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (!selectedDate) return;
     const dateStr = getLocalDateString(selectedDate);
     setTasks(prev => prev.filter(t => t.id !== id));
     await deleteTask(id, dateStr);
   };
-
-  const currentLevel = capy ? Math.floor(capy.oranges / 3) + 1 : 1;
-
-  const handleEquipItem = async (itemId: string) => {
-    if (!capy) return;
-    const isEquipped = capy.equippedItems.includes(itemId);
-    const updatedEquipped = isEquipped ? capy.equippedItems.filter(id => id !== itemId) : [...capy.equippedItems, itemId];
-    
-    setCapy({ ...capy, equippedItems: updatedEquipped });
-    await updateCapyState({ equippedItems: updatedEquipped });
-  };
-
-  const handleBuyItem = async (itemId: string, cost: number) => {
-    if (!capy || capy.oranges < cost) return;
-    
-    const updatedOwned = [...capy.ownedItems, itemId];
-    const updatedOranges = capy.oranges - cost;
-    
-    setCapy({ ...capy, ownedItems: updatedOwned, oranges: updatedOranges });
-    await updateCapyState({ ownedItems: updatedOwned, oranges: updatedOranges });
-  };
-
-  const items = [
-    { id: "hat", name: "Laço Rosa", emoji: "🎀", cost: 2, position: "top" },
-    { id: "glasses", name: "Óculos Cool", emoji: "😎", cost: 5, position: "eyes" },
-    { id: "crown", name: "Coroa Real", emoji: "👑", cost: 10, position: "top" },
-    { id: "flower", name: "Florzinha", emoji: "🌸", cost: 1, position: "side" },
-    { id: "star", name: "Estrela", emoji: "⭐", cost: 3, position: "side" },
-  ];
 
   const handleUpdateTask = async (task: Task) => {
     if (!editText) return;
@@ -206,6 +174,22 @@ export default function PlannerPage() {
     setEditTime("");
     await saveTask(updatedTask);
   };
+
+  if (!selectedDate) return (
+    <div className="h-screen w-full flex items-center justify-center bg-white">
+      <div className="w-16 h-16 border-8 border-pastel-orange border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+
+  const currentLevel = capy ? Math.floor(capy.oranges / 3) + 1 : 1;
+
+  const items = [
+    { id: "hat", name: "Laço Rosa", emoji: "🎀", cost: 2, position: "top" },
+    { id: "glasses", name: "Óculos Cool", emoji: "😎", cost: 5, position: "eyes" },
+    { id: "crown", name: "Coroa Real", emoji: "👑", cost: 10, position: "top" },
+    { id: "flower", name: "Florzinha", emoji: "🌸", cost: 1, position: "side" },
+    { id: "star", name: "Estrela", emoji: "⭐", cost: 3, position: "side" },
+  ];
 
   return (
     <main className="h-screen bg-pastel-pink/10 flex flex-col lg:flex-row overflow-hidden">
@@ -246,6 +230,10 @@ export default function PlannerPage() {
           </Link>
           <div className="flex gap-2">
             <button 
+              onClick={fetchDayData}
+              className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-blue transition-all"
+            ><RefreshCw size={24} /></button>
+            <button 
               onClick={handleToggleNotifications}
               className={`p-3 rounded-2xl border-2 border-foreground hover:bg-opacity-80 transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)] ${notificationStatus === 'granted' ? 'bg-pastel-green' : 'bg-white'}`}
             >
@@ -256,12 +244,6 @@ export default function PlannerPage() {
               className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
             >
               <Trophy className="text-pastel-yellow" />
-            </button>
-            <button 
-              onClick={() => setShowWardrobe(true)}
-              className="p-3 rounded-2xl border-2 border-foreground bg-white hover:bg-pastel-yellow transition-all shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]"
-            >
-              <Sparkles className="text-pastel-orange" />
             </button>
           </div>
         </div>
@@ -278,7 +260,7 @@ export default function PlannerPage() {
           </div>
           <span className="font-chewy text-xl mt-2">Nível {currentLevel}</span>
           {capy && capy.streak > 0 && (
-            <div className="mt-1 flex items-center gap-1 bg-white/50 px-3 py-0.5 rounded-full border-2 border-foreground/20 text-sm font-bold animate-pulse">
+            <div className="mt-1 flex items-center gap-1 bg-white/50 px-3 py-0.5 rounded-full border-2 border-foreground/20 text-sm font-bold">
                🔥 {capy.streak} dias!
             </div>
           )}
@@ -349,7 +331,7 @@ export default function PlannerPage() {
           {loading ? (
             <div className="flex flex-col items-center gap-4">
               <div className="w-16 h-16 border-8 border-pastel-orange border-t-transparent rounded-full animate-spin"></div>
-              <p className="font-chewy text-2xl text-foreground">Abrindo a mochila...</p>
+              <p className="font-chewy text-2xl text-foreground text-center">Abrindo a mochila...</p>
             </div>
           ) : tasks.length === 0 ? (
             <div className="flex flex-col items-center gap-6 text-center max-w-sm">
@@ -360,6 +342,12 @@ export default function PlannerPage() {
                 <p className="font-chewy text-3xl text-foreground/40">Nenhuma missão por aqui!</p>
                 <p className="font-outfit text-xl text-foreground/30 mt-2">Que tal planejar algo divertido para hoje? ✨</p>
               </div>
+              <button 
+                onClick={fetchDayData}
+                className="font-chewy text-pastel-blue text-xl flex items-center gap-2"
+              >
+                <RefreshCw size={20} /> Tentar atualizar
+              </button>
             </div>
           ) : (
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
