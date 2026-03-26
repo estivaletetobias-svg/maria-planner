@@ -47,7 +47,6 @@ export default function PlannerPage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<string>("default");
 
-  // Fix hydration by initializing date on the client
   useEffect(() => {
     setSelectedDate(new Date());
     checkNotificationPermission().then(setNotificationStatus);
@@ -58,10 +57,8 @@ export default function PlannerPage() {
     try {
       await subscribeToNotifications();
       setNotificationStatus('granted');
-      alert("Uhul! Notificações ativadas com sucesso! ✨");
     } catch (err) {
       console.error(err);
-      alert("Ei, Maria! Verifique se seu celular permite as notificações ou se você 'Instalou' o app na tela inicial. 🦦");
     }
   };
 
@@ -84,7 +81,7 @@ export default function PlannerPage() {
       setTasks(dayTasks);
       setCapy(capyState);
     } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -95,31 +92,29 @@ export default function PlannerPage() {
   }, [fetchDayData]);
 
   const handleToggleTask = async (task: Task) => {
-    if (!selectedDate) return;
+    if (!selectedDate || !capy) return;
     const updatedTask = { ...task, completed: !task.completed };
     
-    setTasks(prev => {
-      const newTasks = prev.map(t => t.id === task.id ? updatedTask : t);
-      const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
-      
-      if (allDone && capy) {
-        const todayString = getLocalDateString(new Date());
-        const selectedIsToday = getLocalDateString(selectedDate) === todayString;
-        if (selectedIsToday && capy.lastActiveDate !== todayString) {
-          handleDayCompletion(todayString);
-        }
-      }
-      return newTasks;
-    });
-
-    if (!task.completed && capy) {
+    // Add orange if completing for the first time
+    if (!task.completed) {
        setCapy(prev => prev ? ({ ...prev, oranges: prev.oranges + 1 }) : null);
        setShowReward(true);
        setTimeout(() => setShowReward(false), 2000);
        await updateCapyState({ oranges: capy.oranges + 1 });
     }
 
-    await saveTask(updatedTask);
+    const newTasks = await saveTask(updatedTask);
+    setTasks(newTasks);
+
+    // Check for day completion
+    const allDone = newTasks.length > 0 && newTasks.every(t => t.completed);
+    if (allDone) {
+      const todayString = getLocalDateString(new Date());
+      const selectedIsToday = getLocalDateString(selectedDate) === todayString;
+      if (selectedIsToday && capy.lastActiveDate !== todayString) {
+        handleDayCompletion(todayString);
+      }
+    }
   };
 
   const handleDayCompletion = async (todayString: string) => {
@@ -149,49 +144,30 @@ export default function PlannerPage() {
       text: newTaskText,
       time: newTaskTime || undefined,
       completed: false,
-      type: "school",
+      type: "hobby",
       date: dateStr
     };
     
-    setTasks(prev => [...prev, newTask]);
     setNewTaskText("");
     setNewTaskTime("");
-    await saveTask(newTask);
+    const newTasks = await saveTask(newTask);
+    setTasks(newTasks);
   };
 
   const handleDeleteTask = async (id: string) => {
     if (!selectedDate) return;
     const dateStr = getLocalDateString(selectedDate);
-    setTasks(prev => prev.filter(t => t.id !== id));
-    await deleteTask(id, dateStr);
+    const newTasks = await deleteTask(id, dateStr);
+    setTasks(newTasks);
   };
 
   const handleUpdateTask = async (task: Task) => {
     if (!editText) return;
     const updatedTask = { ...task, text: editText, time: editTime || undefined };
-    setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
     setEditingTask(null);
     setEditTime("");
-    await saveTask(updatedTask);
-  };
-
-  const handleEquipItem = async (itemId: string) => {
-    if (!capy) return;
-    const isEquipped = capy.equippedItems.includes(itemId);
-    const updatedEquipped = isEquipped ? capy.equippedItems.filter(id => id !== itemId) : [...capy.equippedItems, itemId];
-    
-    setCapy({ ...capy, equippedItems: updatedEquipped });
-    await updateCapyState({ equippedItems: updatedEquipped });
-  };
-
-  const handleBuyItem = async (itemId: string, cost: number) => {
-    if (!capy || capy.oranges < cost) return;
-    
-    const updatedOwned = [...capy.ownedItems, itemId];
-    const updatedOranges = capy.oranges - cost;
-    
-    setCapy({ ...capy, ownedItems: updatedOwned, oranges: updatedOranges });
-    await updateCapyState({ ownedItems: updatedOwned, oranges: updatedOranges });
+    const newTasks = await saveTask(updatedTask);
+    setTasks(newTasks);
   };
 
   if (!selectedDate) return (
@@ -209,6 +185,22 @@ export default function PlannerPage() {
     { id: "flower", name: "Florzinha", emoji: "🌸", cost: 1, position: "side" },
     { id: "star", name: "Estrela", emoji: "⭐", cost: 3, position: "side" },
   ];
+
+  const handleEquipItem = async (itemId: string) => {
+    if (!capy) return;
+    const isEquipped = capy.equippedItems.includes(itemId);
+    const updatedEquipped = isEquipped ? capy.equippedItems.filter(id => id !== itemId) : [...capy.equippedItems, itemId];
+    setCapy({ ...capy, equippedItems: updatedEquipped });
+    await updateCapyState({ equippedItems: updatedEquipped });
+  };
+
+  const handleBuyItem = async (itemId: string, cost: number) => {
+    if (!capy || capy.oranges < cost) return;
+    const updatedOwned = [...capy.ownedItems, itemId];
+    const updatedOranges = capy.oranges - cost;
+    setCapy({ ...capy, ownedItems: updatedOwned, oranges: updatedOranges });
+    await updateCapyState({ ownedItems: updatedOwned, oranges: updatedOranges });
+  };
 
   return (
     <main className="h-screen bg-pastel-pink/10 flex flex-col lg:flex-row overflow-hidden">
@@ -293,7 +285,7 @@ export default function PlannerPage() {
         <header className="hidden lg:flex justify-between items-center bg-white/80 backdrop-blur pb-6 border-b-4 border-pastel-pink/20">
           <div>
             <h1 className="font-chewy text-6xl text-foreground text-left">Missões da Maria</h1>
-            <p className="font-pacifico text-3xl text-pastel-pink mt-2">
+            <p className="font-pacifico text-3xl text-pastel-pink mt-2 text-left">
               {selectedDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
@@ -312,7 +304,7 @@ export default function PlannerPage() {
         </header>
 
         <div className="lg:hidden mb-2">
-           <h1 className="font-chewy text-4xl text-foreground">Missões da Maria</h1>
+           <h1 className="font-chewy text-4xl text-foreground text-left">Missões da Maria</h1>
            <div className="flex items-center gap-2 mt-2">
               <div className="bg-white px-4 py-1 rounded-full border-2 border-foreground font-chewy text-lg shadow-[2px_2px_0px_0px_rgba(62,39,35,1)]">
                 🍊 {capy?.oranges || 0}
@@ -369,8 +361,8 @@ export default function PlannerPage() {
               </button>
             </div>
           ) : (
-            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
-              {tasks.map(task => (
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+              {tasks.sort((a,b) => (a.time || "99:99").localeCompare(b.time || "99:99")).map(task => (
                 <motion.div
                   layout
                   key={task.id}

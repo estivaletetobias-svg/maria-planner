@@ -27,27 +27,28 @@ export interface CapyState {
   lastActiveDate: string;
 }
 
-const TASKS_KEY_PREFIX = "tasks_h:"; // Note the change to 'h' for hash
+const TASKS_KEY_PREFIX = "tasks:"; // Standard prefix
 const CAPY_KEY = "capy_state";
 
 export async function getTasks(date: string): Promise<Task[]> {
-  console.log(`[Redis] Lendo tarefas para: ${date}`);
-  const tasksObj = await redis.hgetall<Record<string, Task>>(`${TASKS_KEY_PREFIX}${date}`);
-  if (!tasksObj) return [];
-  return Object.values(tasksObj);
+  const tasks = await redis.get<Task[]>(`${TASKS_KEY_PREFIX}${date}`);
+  return tasks || [];
 }
 
-export async function saveTask(task: Task) {
-  console.log(`[Redis] Salvando tarefa "${task.text}" em: ${task.date}`);
-  await redis.hset(`${TASKS_KEY_PREFIX}${task.date}`, {
-    [task.id]: task
-  });
+export async function saveTask(task: Task): Promise<Task[]> {
+  const tasks = await getTasks(task.date);
+  const updatedTasks = [...tasks.filter(t => t.id !== task.id), task];
+  await redis.set(`${TASKS_KEY_PREFIX}${task.date}`, updatedTasks);
   revalidatePath("/planner");
+  return updatedTasks;
 }
 
-export async function deleteTask(id: string, date: string) {
-  await redis.hdel(`${TASKS_KEY_PREFIX}${date}`, id);
+export async function deleteTask(id: string, date: string): Promise<Task[]> {
+  const tasks = await getTasks(date);
+  const updatedTasks = tasks.filter((t) => t.id !== id);
+  await redis.set(`${TASKS_KEY_PREFIX}${date}`, updatedTasks);
   revalidatePath("/planner");
+  return updatedTasks;
 }
 
 export async function getCapyState(): Promise<CapyState> {

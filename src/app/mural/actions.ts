@@ -19,30 +19,50 @@ export interface Note {
   rotation: number;
 }
 
-const MURAL_IDS_KEY = "mural_note_ids";
-const NOTE_PREFIX = "note:";
+const MURAL_IDS_KEY_V1 = "mural_note_ids";
+const NOTE_PREFIX_V1 = "note:";
+
+const MURAL_IDS_KEY_V2 = "mural_note_ids_v2";
+const NOTE_PREFIX_V2 = "note_v2:";
 
 export async function getNotes(): Promise<Note[]> {
-  const ids = await redis.smembers(MURAL_IDS_KEY);
+  console.log("[Mural] Lendo notas...");
+  
+  // Migration logic: check if V1 exists and V2 is empty
+  const v1Exists = await redis.exists(MURAL_IDS_KEY_V1);
+  const v2Count = await redis.scard(MURAL_IDS_KEY_V2);
+  
+  if (v1Exists && v2Count === 0) {
+    console.log("[Mural] Iniciando migração V1 -> V2...");
+    const ids = await redis.smembers(MURAL_IDS_KEY_V1);
+    for (const id of ids) {
+      const note = await redis.get<Note>(`${NOTE_PREFIX_V1}${id}`);
+      if (note) {
+        await redis.set(`${NOTE_PREFIX_V2}${id}`, note);
+        await redis.sadd(MURAL_IDS_KEY_V2, id);
+      }
+    }
+  }
+
+  const ids = await redis.smembers(MURAL_IDS_KEY_V2);
   if (!ids || ids.length === 0) return [];
   
-  // Fetch all notes in parallel using MGET or individual GETs
-  const noteKeys = ids.map(id => `${NOTE_PREFIX}${id}`);
-  const notes = await redis.mget<Note[]>(...noteKeys);
+  const notes: Note[] = [];
+  for (const id of ids) {
+    const note = await redis.get<Note>(`${NOTE_PREFIX_V2}${id}`);
+    if (note) notes.push(note);
+  }
   
-  // Filter out nulls (in case some notes were deleted but ID stayed)
-  return notes.filter((n): n is Note => n !== null);
+  return notes;
 }
 
 import { sendPushNotification } from "@/app/notifications/actions";
 
 export async function addNote(note: Note) {
-  // Save individual note
-  await redis.set(`${NOTE_PREFIX}${note.id}`, note);
-  // Add ID to the set
-  await redis.sadd(MURAL_IDS_KEY, note.id);
+  console.log(`[Mural] Adicionando nota de ${note.author}`);
+  await redis.set(`${NOTE_PREFIX_V2}${note.id}`, note);
+  await redis.sadd(MURAL_IDS_KEY_V2, note.id);
   
-  // Trigger Push
   try {
     const typeStr = note.audio ? "um áudio 🎙️" : "um recado 📝";
     await sendPushNotification(
@@ -58,9 +78,17 @@ export async function addNote(note: Note) {
 }
 
 export async function deleteNote(id: string) {
-  // Remove individual key
-  await redis.del(`${NOTE_PREFIX}${id}`);
-  // Remove ID from set
-  await redis.srem(MURAL_IDS_KEY, id);
+  console.log(`[Mural] Deletando nota ${id}`);
+  await redis.del(`${NOTE_PREFIX_V2}${id}`);
+  await redis.srem(MURAL_IDS_KEY_V2, id);
   revalidatePath("/mural");
+}
+
+export async function updateNotePosition(id: string, x: number, y: number) {
+  const note = await redis.get<Note>(`${NOTE_PREFIX_V2}${id}`);
+  if (note) {
+    note.x = x;
+    note.y = y;
+    await redis.set(`${NOTE_PREFIX_V2}${id}`, note);
+  }
 }
