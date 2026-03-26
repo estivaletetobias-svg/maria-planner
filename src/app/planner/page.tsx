@@ -17,9 +17,17 @@ export default function PlannerPage() {
   const [showReward, setShowReward] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
 
+  // Helper to format date consistent for DB (YYYY-MM-DD)
+  const getLocalDateString = useCallback((date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   const fetchDayData = useCallback(async () => {
     setLoading(true);
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(selectedDate);
     try {
       const [dayTasks, capyState] = await Promise.all([
         getTasks(dateStr),
@@ -32,7 +40,7 @@ export default function PlannerPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, getLocalDateString]);
 
   useEffect(() => {
     fetchDayData();
@@ -57,7 +65,7 @@ export default function PlannerPage() {
 
   const handleAddTask = async () => {
     if (!newTaskText) return;
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(selectedDate);
     const newTask: Task = {
       id: Math.random().toString(36).substring(7),
       text: newTaskText,
@@ -72,7 +80,7 @@ export default function PlannerPage() {
   };
 
   const handleDeleteTask = async (id: string) => {
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(selectedDate);
     setTasks(prev => prev.filter(t => t.id !== id));
     await deleteTask(id, dateStr);
   };

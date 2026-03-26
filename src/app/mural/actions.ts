@@ -19,23 +19,33 @@ export interface Note {
   rotation: number;
 }
 
-const MURAL_KEY = "mural_notes";
+const MURAL_IDS_KEY = "mural_note_ids";
+const NOTE_PREFIX = "note:";
 
 export async function getNotes(): Promise<Note[]> {
-  const notes = await redis.get<Note[]>(MURAL_KEY);
-  return notes || [];
+  const ids = await redis.smembers(MURAL_IDS_KEY);
+  if (!ids || ids.length === 0) return [];
+  
+  // Fetch all notes in parallel using MGET or individual GETs
+  const noteKeys = ids.map(id => `${NOTE_PREFIX}${id}`);
+  const notes = await redis.mget<Note[]>(...noteKeys);
+  
+  // Filter out nulls (in case some notes were deleted but ID stayed)
+  return notes.filter((n): n is Note => n !== null);
 }
 
 export async function addNote(note: Note) {
-  const notes = await getNotes();
-  const updatedNotes = [...notes, note];
-  await redis.set(MURAL_KEY, updatedNotes);
+  // Save individual note
+  await redis.set(`${NOTE_PREFIX}${note.id}`, note);
+  // Add ID to the set
+  await redis.sadd(MURAL_IDS_KEY, note.id);
   revalidatePath("/mural");
 }
 
 export async function deleteNote(id: string) {
-  const notes = await getNotes();
-  const updatedNotes = notes.filter((n) => n.id !== id);
-  await redis.set(MURAL_KEY, updatedNotes);
+  // Remove individual key
+  await redis.del(`${NOTE_PREFIX}${id}`);
+  // Remove ID from set
+  await redis.srem(MURAL_IDS_KEY, id);
   revalidatePath("/mural");
 }
