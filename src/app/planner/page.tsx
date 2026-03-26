@@ -175,6 +175,25 @@ export default function PlannerPage() {
     await saveTask(updatedTask);
   };
 
+  const handleEquipItem = async (itemId: string) => {
+    if (!capy) return;
+    const isEquipped = capy.equippedItems.includes(itemId);
+    const updatedEquipped = isEquipped ? capy.equippedItems.filter(id => id !== itemId) : [...capy.equippedItems, itemId];
+    
+    setCapy({ ...capy, equippedItems: updatedEquipped });
+    await updateCapyState({ equippedItems: updatedEquipped });
+  };
+
+  const handleBuyItem = async (itemId: string, cost: number) => {
+    if (!capy || capy.oranges < cost) return;
+    
+    const updatedOwned = [...capy.ownedItems, itemId];
+    const updatedOranges = capy.oranges - cost;
+    
+    setCapy({ ...capy, ownedItems: updatedOwned, oranges: updatedOranges });
+    await updateCapyState({ ownedItems: updatedOwned, oranges: updatedOranges });
+  };
+
   if (!selectedDate) return (
     <div className="h-screen w-full flex items-center justify-center bg-white">
       <div className="w-16 h-16 border-8 border-pastel-orange border-t-transparent rounded-full animate-spin"></div>
